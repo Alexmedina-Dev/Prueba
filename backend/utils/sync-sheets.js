@@ -171,104 +171,46 @@ async function syncSheets(datos, estado) {
       });
       const allRows = allDetail.data.values || [];
       
-      // Separar: filas de otros servicios vs filas del servicio actual
-      const otherRows = [];
-      const ownIndices = [];
-      allRows.forEach((r, i) => {
-        if (r[0] === datos.idServicio) {
-          ownIndices.push(i);
-        } else {
-          otherRows.push(r);
-        }
-      });
-
       // Crear nuevas filas del servicio actual
       const newRows = datos.detalle.map(d => [
         datos.idServicio,
         d.tipo,
-        d.codigo,
-        d.descripcion,
+        d.codigo || '',
+        d.descripcion || '',
         d.cantidad,
         d.precio_unitario,
         d.subtotal || (d.cantidad * d.precio_unitario)
       ]);
 
-      // Si hay filas viejas del servicio, sobrescribirlas; si sobran, borrarlas; si faltan, append
-      if (ownIndices.length > 0) {
-        const firstIdx = ownIndices[0]; // primera fila del servicio
-        
-        if (newRows.length === ownIndices.length) {
-          // Misma cantidad: sobrescribir directamente
-          for (let i = 0; i < newRows.length; i++) {
-            await sheets.spreadsheets.values.update({
-              spreadsheetId,
-              range: `Detalle_Servicios!A${firstIdx + 1 + i}:G${firstIdx + 1 + i}`,
-              valueInputOption: 'USER_ENTERED',
-              requestBody: { values: [newRows[i]] }
-            });
-          }
-        } else if (newRows.length > ownIndices.length) {
-          // Más items nuevos: sobrescribir las que existen, append() las extras
-          for (let i = 0; i < ownIndices.length; i++) {
-            await sheets.spreadsheets.values.update({
-              spreadsheetId,
-              range: `Detalle_Servicios!A${firstIdx + 1 + i}:G${firstIdx + 1 + i}`,
-              valueInputOption: 'USER_ENTERED',
-              requestBody: { values: [newRows[i]] }
-            });
-          }
-          // Append las extras
-          const extraRows = newRows.slice(ownIndices.length);
-          await sheets.spreadsheets.values.append({
-            spreadsheetId,
-            range: 'Detalle_Servicios!A:G',
-            valueInputOption: 'USER_ENTERED',
-            requestBody: { values: extraRows }
-          });
-        } else {
-          // Menos items nuevos: sobrescribir las primeras, borrar las sobrantes con batchUpdate
-          for (let i = 0; i < newRows.length; i++) {
-            await sheets.spreadsheets.values.update({
-              spreadsheetId,
-              range: `Detalle_Servicios!A${firstIdx + 1 + i}:G${firstIdx + 1 + i}`,
-              valueInputOption: 'USER_ENTERED',
-              requestBody: { values: [newRows[i]] }
-            });
-          }
-          // Borrar las filas sobrantes (de abajo hacia arriba para no afectar índices)
-          const rowsToDelete = ownIndices.length - newRows.length;
-          for (let i = 0; i < rowsToDelete; i++) {
-            const rowNum = firstIdx + 1 + newRows.length + i;
-            await sheets.spreadsheets.batchUpdate({
-              spreadsheetId,
-              requestBody: {
-                requests: [{
-                  deleteDimension: {
-                    range: {
-                      sheetId: await getSheetId(sheets, spreadsheetId, 'Detalle_Servicios'),
-                      dimension: 'ROWS',
-                      startIndex: rowNum - 1,
-                      endIndex: rowNum
-                    }
-                  }
-                }]
-              }
-            });
-          }
-        }
-      } else {
-        // No hay filas previas: append simple
-        await sheets.spreadsheets.values.append({
-          spreadsheetId,
-          range: 'Detalle_Servicios!A:G',
-          valueInputOption: 'USER_ENTERED',
-          requestBody: { values: newRows }
-        });
-      }
+      // Estrategia segura: filtrar TODAS las filas viejas de este servicio,
+      // insertar las nuevas en la posición de la primera fila vieja.
+      // Esto funciona aunque las filas NO sean contiguas (bug corregido).
+      const otherRows = allRows.filter(r => r[0] !== datos.idServicio);
+      const firstOldIdx = allRows.findIndex(r => r[0] === datos.idServicio);
+      const insertAt = firstOldIdx >= 0 ? firstOldIdx : otherRows.length;
+      otherRows.splice(insertAt, 0, ...newRows);
+
+      // Reescribir toda la hoja (seguro, sin problemas de índices)
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId,
+        range: 'Detalle_Servicios!A:G'
+      });
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: 'Detalle_Servicios!A1',
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: otherRows }
+      });
     }
 
     // ── 5. Sincronizar Cierre Diario en hoja "Cierres Diarios" ──
     if (estado === 'CierreDiario' && datos.idCierre) {
+      // Normalizar fecha a YYYY-MM-DD
+      let fechaNorm = datos.fecha;
+      if (fechaNorm && fechaNorm.includes('T')) {
+        fechaNorm = fechaNorm.split('T')[0];
+      }
+
       // Buscar si ya existe un cierre para esta fecha+tecnico
       const cierreSearch = await sheets.spreadsheets.values.get({
         spreadsheetId,
@@ -279,9 +221,9 @@ async function syncSheets(datos, estado) {
       const cierreData = cierreSearch.data.values || [];
       
       for (let i = 0; i < cierreData.length; i++) {
-        const fechaFila = cierreData[i][1] || '';
+        const fechaFila = (cierreData[i][1] || '').split('T')[0];
         const tecnicoFila = cierreData[i][2] || '';
-        if (fechaFila === datos.fecha && tecnicoFila === datos.tecnico) {
+        if (fechaFila === fechaNorm && tecnicoFila === datos.tecnico) {
           filaExistente = i + 2; // +2 porque empezamos en A2 (fila 1 es header, datos empiezan fila 2)
           break;
         }
@@ -289,7 +231,7 @@ async function syncSheets(datos, estado) {
       
       const cierreRow = [
         datos.idCierre,
-        datos.fecha,
+        fechaNorm,
         datos.tecnico,
         datos.cantidad_servicios,
         datos.total_facturado

@@ -39,18 +39,28 @@ router.post('/generar', auth, async (req, res) => {
 
     const totalFacturado = totales[0].total_mano_obra;
 
-    // Generar idCierre único
-    const idCierre = `CIE-${fecha.replace(/-/g, '')}-${tecnico.substring(0, 3).toUpperCase()}-${Date.now()}`;
+    // Generar idCierre con formato original (CIE-timestamp)
+    const idCierre = `CIE-${Date.now()}`;
 
-    // Upsert en cierres_diarios
+    // Upsert en cierres_diarios usando fecha+tecnico como clave única
     await pool.execute(`
       INSERT INTO cierres_diarios
         (idCierre, fecha, tecnico, cantidad_servicios, total_facturado)
       VALUES (?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
+        idCierre = VALUES(idCierre),
         cantidad_servicios = VALUES(cantidad_servicios),
         total_facturado = VALUES(total_facturado)
     `, [idCierre, fecha, tecnico, servicios.length, totalFacturado]);
+
+    // Sync Cierres Diarios a Google Sheets (ANTES de cierre_servicios para que siempre sincronice)
+    syncSheets({ 
+      idCierre, 
+      fecha, 
+      tecnico, 
+      cantidad_servicios: servicios.length, 
+      total_facturado: totalFacturado 
+    }, 'CierreDiario');
 
     // Insertar relación cierre-servicios en cierre_servicios
     for (const idSrv of idsServicio) {
@@ -60,15 +70,6 @@ router.post('/generar', auth, async (req, res) => {
         ON DUPLICATE KEY UPDATE idServicio = idServicio
       `, [idCierre, idSrv]);
     }
-
-    // Sync Cierres Diarios a Google Sheets
-    syncSheets({ 
-      idCierre, 
-      fecha, 
-      tecnico, 
-      cantidad_servicios: servicios.length, 
-      total_facturado: totalFacturado 
-    }, 'CierreDiario');
 
     res.json({
       ok: true,

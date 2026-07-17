@@ -1,6 +1,6 @@
 # MOTOVERSO - Contexto del Proyecto
 
-> **Última actualización:** 15 de julio de 2026
+> **Última actualización:** 17 de julio de 2026
 > **Estado:** En desarrollo local (pruebas)
 > **Nota:** Este archivo es la fuente de verdad del contexto. Si se abre una nueva sesión, leer este archivo primero antes de preguntar.
 
@@ -57,10 +57,15 @@ C:\MotoVerso\
 │   │   └── auth.js          ← JWT verification
 │   ├── routes/
 │   │   ├── auth.js          ← POST /api/login
-│   │   ├── servicios.js     ← GET/POST servicios
+│   │   ├── servicios.js     ← GET/POST servicios (NOTA: GET /pendientes ANTES que GET /:id)
 │   │   └── cierres.js       ← POST cierre diario
-│   └── utils/
-│       └── sync-sheets.js   ← Sync a Google Sheets
+│   ├── utils/
+│   │   ├── sync-sheets.js   ← Sync a Google Sheets
+│   │   └── logger.js        ← Sistema de logs de errores
+│   ├── logs/
+│   │   └── errores.log      ← Archivo de logs de errores
+│   ├── server-out.log       ← stdout del servidor
+│   └── server-err.log       ← stderr del servidor (redirect)
 │
 └── scripts/
     └── migrate-excel-to-mysql.js  ← Migración de Excel a MySQL
@@ -167,8 +172,10 @@ CREATE TABLE cierres_diarios (
 |--------|------|-------------|------|
 | POST | `/api/login` | Login con email/password | No |
 | GET | `/api/servicios/abiertos` | Lista servicios con estado='Abierto' | JWT |
+| GET | `/api/servicios/pendientes` | Lista servicios abiertos para dropdown (con días y urgencia) | JWT |
 | POST | `/api/servicios/buscar-placa` | Busca vehículo/cliente por placa | JWT |
 | POST | `/api/servicios/guardar` | Guarda/actualiza orden completa | JWT |
+| POST | `/api/servicios/cerrar-rapido` | Cierra servicio desde dropdown de pendientes | JWT |
 | POST | `/api/cierres/generar` | Genera cierre diario por técnico | JWT |
 
 **WebSocket (Socket.io):**
@@ -255,10 +262,12 @@ npm start
 ```
 Debe decir: "MotoVerso backend corriendo en puerto 3000"
 
-### Paso 5: Abrir frontend
-- Abrir `http://localhost:5500/index.html` (login)
+### Paso 5: Abrir frontend (ya no necesita Live Server)
+- El backend Express ahora sirve los archivos estáticos (APP/, IMG/, login)
+- Abrir `http://localhost:3000/index.html` (login)
+- El dashboard está en `http://localhost:3000/APP/app.html`
 - Credenciales: `admin@gmail.com` / `admin1234`
-- Redirige a `APP/app.html`
+- **API_BASE usa `window.location.origin`** — funciona en cualquier puerto/dominio sin hardcodear localhost
 
 ---
 
@@ -268,26 +277,30 @@ Debe decir: "MotoVerso backend corriendo en puerto 3000"
 - [x] Backend Node.js con Express + mysql2 + Socket.io
 - [x] Rutas API (login, servicios, cierres)
 - [x] Auth JWT
-- [x] Sync a Google Sheets (módulo listo, no testeado aún)
+- [x] Sync a Google Sheets (módulo listo)
 - [x] Frontend app.html con CSS inline (mismo diseño)
 - [x] Frontend app-client.js con fetch() + Socket.io
 - [x] Script de migración Excel → MySQL (con upsert y manejo de fechas)
 - [x] Base de datos MySQL creada en XAMPP
 - [x] Datos migrados desde Excel (1,607 clientes, 1,545 vehículos, 2,448 servicios, 8,388 detalles, 464 cierres)
-- [x] Servidor corriendo en localhost:3000
-- [x] Login funcionando (devuelve JWT)
+- [x] Servidor Express sirve frontend estático (APP/, IMG/, login) — no necesita Live Server
+- [x] Login funcionando con JWT
 - [x] API /api/servicios/abiertos devolviendo datos reales
+- [x] **Panel de pendientes** — dropdown con servicios abiertos, badge de conteo, grupos por urgencia (vencido/riesgo/hoy)
+- [x] **Confirmar entrega** — botón en cada pendiente para cerrar servicio rápido
+- [x] **Modal de confirmación personalizado** — en vez de `confirm()` nativo del navegador
+- [x] **Ruta /pendientes ANTES que /:id** — corrige 404 al cargar pendientes
+- [x] **Responsive mobile:** header en columna (logo → texto → cerrar sesión → pendientes), ambos botones mismo ancho, dropdown modal centrado
+- [x] **Sistema de logs de errores** — logger.js con tabla logs_errores en MySQL y archivo errores.log
 
 ### 🔲 Pendiente
-- [ ] Probar frontend completo (login → dashboard → buscar placa → guardar orden)
 - [ ] Probar Socket.io (bloqueo de servicios en tiempo real)
 - [ ] Probar sync a Google Sheets (escribir en la Sheet de prueba)
-- [ ] Responsive mobile-first (verificar tablas y botones en celular)
 - [ ] Test de guardar servicio (Abierto y Cerrado)
 - [ ] Test de cierre diario
 - [ ] Configurar cuenta de Google Cloud con Gmail real del cliente
 - [ ] Crear backup script para MySQL en producción
-- [ ] Deploy en Hostinger
+- [ ] Deploy en Hostinger o Vercel + backend separado
 
 ---
 
@@ -324,6 +337,21 @@ Debe decir: "MotoVerso backend corriendo en puerto 3000"
 **Status:** No afecta el proyecto.
 **Causa:** Al convertir Excel (.xlsx) a Google Sheets, algunas fórmulas de la hoja "GENERAR FACTURA" se rompen.
 **Nota:** Esto NO afecta la Sheet real del cliente. Es solo la copia de prueba en el Drive de Alex.
+
+### Problema 5: 404 en GET /api/servicios/pendientes
+**Status:** Corregido.
+**Causa:** En `routes/servicios.js`, la ruta `GET /:id` estaba definida ANTES que `GET /pendientes`. Express interpretaba "pendientes" como el parámetro `:id`, respondiendo 404.
+**Solución:** Mover `GET /pendientes` antes de `GET /:id`. Las rutas específicas siempre van antes que las rutas con parámetros dinámicos.
+
+### Problema 6: Dropdown de pendientes visible sin hacer clic en móvil
+**Status:** Corregido.
+**Causa:** El CSS de escritorio `.dropdown-pendientes { display: none }` estaba dentro de `@media (min-width: 769px)`. El media query móvil no tenía `display: none` propio, y el duplicado `position: absolute` del `pendientes-wrap` sobrescribía el media query.
+**Solución:** Unificar los selectores duplicados. Envolver los estilos de escritorio en `@media (min-width: 769px)`. Agregar `display: none` explícito al `.dropdown-pendientes` dentro del media query móvil.
+
+### Problema 7: Confirmación nativa (`confirm()`) se veía fea
+**Status:** Corregido.
+**Causa:** `cerrarServicioRapido` y `cerrarTodosPendientes` usaban `confirm()` del navegador.
+**Solución:** Reemplazar con modal personalizado (`mostrarConfirmModal`) con botones "Sí, cerrar" / "Cancelar", mismo estilo que el resto de la app.
 
 ---
 
@@ -418,31 +446,36 @@ npm start
 
 ---
 
-## 13. Próximos Pasos Recomendados
+## 15. Próximos Pasos Recomendados
 
-### Fase 1: Pruebas locales (AHORA)
+### Fase 1: Pruebas locales (COMPLETADO)
 1. ✅ Backend instalado y corriendo
 2. ✅ Datos migrados a MySQL
-3. ✅ API funcionando (login, servicios abiertos, buscar placa)
-4. 🔲 Probar frontend completo (login → dashboard → guardar orden)
-5. 🔲 Probar Socket.io (bloqueo en tiempo real)
-6. 🔲 Probar sync a Google Sheets (escribir en Sheet de prueba)
+3. ✅ API funcionando (login, abiertos, pendientes, buscar placa, cerrar rápido)
+4. ✅ Frontend sirviendo desde Express (no necesita Live Server)
+5. ✅ Responsive mobile (header columna, botones mismo ancho)
+6. ✅ Panel de pendientes con dropdown y confirmación personalizada
+7. ✅ Modal de confirmación profesional
+8. 🔲 Probar Socket.io (bloqueo en tiempo real)
+9. 🔲 Probar sync a Google Sheets (escribir en Sheet de prueba)
+10. 🔲 Test de guardar servicio (Abierto y Cerrado)
+11. 🔲 Test de cierre diario
 
 ### Fase 2: Preparación producción
-7. 🔲 Crear cuenta Google Cloud con Gmail del cliente
-8. 🔲 Compartir Sheet real con cuenta de servicio
-9. 🔲 Exportar MySQL local e importar en Hostinger
-10. 🔲 Actualizar `.env` con datos de producción
+12. 🔲 Crear cuenta Google Cloud con Gmail del cliente
+13. 🔲 Compartir Sheet real con cuenta de servicio
+14. 🔲 Exportar MySQL local e importar en Hostinger
+15. 🔲 Actualizar `.env` con datos de producción
 
 ### Fase 3: Deploy
-11. 🔲 Subir código a Hostinger
-12. 🔲 Configurar dominio
-13. 🔲 Probar todo en producción
-14. 🔲 Entregar al cliente
+16. 🔲 Subir código a Hostinger
+17. 🔲 Configurar dominio
+18. 🔲 Probar todo en producción
+19. 🔲 Entregar al cliente
 
 ---
 
-## 14. Estado de Verificación del Backend (15 jul 2026)
+## 14. Estado de Verificación del Backend (17 jul 2026)
 
 ### ✅ Rutas API verificadas
 
@@ -450,20 +483,20 @@ npm start
 |------|--------|--------|---------|
 | `/api/login` | POST | ✅ OK | Devuelve JWT token válido |
 | `/api/servicios/abiertos` | GET | ✅ OK | Devuelve servicios abiertos con JOIN clientes/vehiculos |
+| `/api/servicios/pendientes` | GET | ✅ OK | Devuelve servicios abiertos con días y clasificación de urgencia |
 | `/api/servicios/buscar-placa` | POST | ✅ OK | Encuentra vehículo, cliente e historial |
+| `/api/servicios/cerrar-rapido` | POST | ✅ OK | Cierra servicio y sincroniza a Google Sheets |
 | `/api/servicios/guardar` | POST | ⚠️ NO PROBADO | Pendiente prueba con datos reales |
 | `/api/cierres/generar` | POST | ⚠️ NO PROBADO | Pendiente prueba con datos reales |
 
 ### ⚠️ Pendiente de verificar
 - Socket.io (lock/unlock en tiempo real)
-- Sync a Google Sheets (sync-sheets.js)
 - Guardar servicio nuevo y actualizar existente
 - Cierre diario con datos reales
-- Responsive mobile-first en el frontend
 
 ---
 
-## 13. Referencias Externas
+## 16. Referencias Externas
 
 - **Google Cloud Console:** https://console.cloud.google.com
 - **XAMPP:** https://www.apachefriends.org

@@ -66,6 +66,40 @@
       background: #f0f0f0;
     }
 
+    .pendientes-wrap {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 10;
+      display: inline-block;
+    }
+
+    .btn-pendientes {
+      background: #ff9800;
+      color: #fff;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: bold;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-pendientes:hover {
+      background: #f57c00;
+    }
+
+    .btn-pendientes .badge {
+      background: #d32f2f;
+      color: #fff;
+      border-radius: 50%;
+      padding: 1px 6px;
+      font-size: 11px;
+      margin-left: 4px;
+      vertical-align: top;
+    }
+
     .abiertos-container {
       display: flex;
       gap: 10px;
@@ -320,14 +354,61 @@
         padding: 10px;
       }
 
+      .header-title {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        padding-bottom: 12px;
+      }
+
       .header-logo {
-        width: 400px;
+        width: 350px;
       }
 
       .btn-logout {
         position: static;
+        margin: 10px auto;
+        display: block;
+        width: fit-content;
+      }
+
+      .btn-pendientes {
+        padding-left: 20px;
+        padding-right: 20px;
+        font-size: 13px;
+        font-weight: bold;
+        border: none;
+        display: block;
+        margin: 0 auto;
+      }
+
+      .pendientes-wrap {
+        position: relative;
         margin-top: 10px;
+        text-align: center;
         display: inline-block;
+      }
+
+      .dropdown-pendientes {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+        width: 95vw;
+        max-width: 400px;
+        max-height: 80vh;
+        overflow-y: auto;
+        z-index: 200;
+        color: #333;
+      }
+
+      .dropdown-pendientes.open {
+        display: block;
       }
 
       .form-row {
@@ -393,6 +474,18 @@
         font-size: 11px;
       }
 
+      .btn-pendientes {
+        font-size: 12px;
+        padding: 10px 16px;
+        width: auto;
+      }
+
+      .btn-logout {
+        font-size: 12px;
+        padding: 10px 16px;
+        width: auto;
+      } 
+
       .section {
         padding: 15px;
       }
@@ -401,28 +494,34 @@
     /* Modal de validación */
     .modal-overlay {
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.6);
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 9999;
     }
+
     .modal-box {
       background: white;
       padding: 30px;
       border-radius: 12px;
       max-width: 400px;
       width: 90%;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
       text-align: center;
     }
+
     .modal-box p {
       font-size: 16px;
       line-height: 1.6;
       margin: 15px 0;
       color: #333;
     }
+
     .modal-btn {
       background: #d32f2f;
       color: white;
@@ -433,8 +532,150 @@
       cursor: pointer;
       margin-top: 10px;
     }
+
     .modal-btn:hover {
       background: #b71c1c;
+    }
+
+    /* ── Dropdown Pendientes ──────────────── */
+
+    @media (min-width: 769px) {
+      .dropdown-pendientes {
+        display: none;
+        position: absolute;
+        top: 44px;
+        left: 0;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+        width: 380px;
+        max-height: 420px;
+        overflow-y: auto;
+        z-index: 100;
+        color: #333;
+      }
+
+      .dropdown-pendientes.open {
+        display: block;
+      }
+    }
+
+    .dropdown-pendientes .dd-header {
+      padding: 12px 15px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dropdown-pendientes .dd-header h3 {
+      margin: 0;
+      font-size: 15px;
+      color: #333;
+    }
+
+    .dropdown-pendientes .dd-body {
+      padding: 8px;
+    }
+
+    .pendiente-grupo {
+      margin-bottom: 8px;
+    }
+
+    .pendiente-grupo h4 {
+      font-size: 12px;
+      margin: 0 0 4px 0;
+      padding: 3px 8px;
+      border-radius: 4px;
+      color: #fff;
+    }
+
+    .pendiente-grupo h4.vencido {
+      background: #d32f2f;
+    }
+
+    .pendiente-grupo h4.riesgo {
+      background: #ff9800;
+    }
+
+    .pendiente-grupo h4.reciente {
+      background: #4caf50;
+    }
+
+    .pendiente-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      border-bottom: 1px solid #f5f5f5;
+      font-size: 13px;
+      transition: background 0.15s;
+    }
+
+    .pendiente-item:hover {
+      background: #f5f5f5;
+    }
+
+    .pendiente-item .info {
+      flex: 1;
+    }
+
+    .pendiente-item .info .placa-tag {
+      font-weight: bold;
+      color: #1565c0;
+    }
+
+    .pendiente-item .info .meta {
+      color: #888;
+      font-size: 11px;
+    }
+
+    .pendiente-item .btn-entregar {
+      background: #4caf50;
+      color: #fff;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    .pendiente-item .btn-entregar:hover {
+      background: #388e3c;
+    }
+
+    .pendiente-item .btn-entregar:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+
+    .dd-footer {
+      padding: 8px 12px;
+      border-top: 1px solid #eee;
+      text-align: right;
+    }
+
+    .dd-footer button {
+      background: #d32f2f;
+      color: #fff;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .dd-footer button:hover {
+      background: #b71c1c;
+    }
+
+    .dd-vacio {
+      text-align: center;
+      color: #aaa;
+      padding: 20px;
+      font-size: 14px;
     }
   </style>
 </head>
@@ -444,6 +685,21 @@
     <img src="../IMG/Logo-app.png" alt="MotoVerso" class="header-logo">
     <p>Gestión Pro de Órdenes</p>
     <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+    <div class="pendientes-wrap">
+      <button class="btn-pendientes" onclick="togglePendientes(event)">
+        ⚠️ Pendientes <span id="pendientes-badge" class="badge" style="display:none;">0</span>
+      </button>
+      <div id="dropdown-pendientes" class="dropdown-pendientes">
+        <div class="dd-header">
+          <h3>Servicios Abiertos</h3>
+          <button onclick="cargarPendientes()" style="background:none;border:none;cursor:pointer;font-size:16px;" title="Actualizar">🔄</button>
+        </div>
+        <div class="dd-body" id="pendientes-body"></div>
+        <div class="dd-footer" id="pendientes-footer" style="display:none;">
+          <button onclick="cerrarTodosPendientes()">Cerrar todos</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="motos-abiertas" class="abiertos-container"></div>
@@ -453,8 +709,8 @@
     <div class="form-row">
       <div class="form-group" style="flex-grow: 1; margin-bottom:0;">
         <label>Placa: <span style="color:#c00;">*</span></label>
-        <input type="text" id="placa" style="text-transform: uppercase;"
-          placeholder="Ej: PPP77D" onkeydown="if(event.key==='Enter')buscarPlaca()">
+        <input type="text" id="placa" style="text-transform: uppercase;" placeholder="Ej: PPP77D, LLT25Ñ"
+          onkeydown="if(event.key==='Enter')buscarPlaca()">
       </div>
       <div style="display:flex; align-items:flex-end;">
         <button class="btn-limpiar" onclick="limpiarFormulario()">Nueva Búsqueda</button>
@@ -468,13 +724,15 @@
     <div class="form-row">
       <div class="form-group"><label>Cédula: <span style="color:#c00;">*</span></label><input type="text" id="cedula"
           placeholder="Número de cédula"></div>
-      <div class="form-group" style="flex:2;"><label>Nombre: <span style="color:#c00;">*</span></label><input type="text" id="nombre"></div>
+      <div class="form-group" style="flex:2;"><label>Nombre: <span style="color:#c00;">*</span></label><input
+          type="text" id="nombre"></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Teléfono:</label><input type="text" id="telefono"></div>
       <div class="form-group"><label>Correo:</label><input type="email" id="correo" placeholder="ejemplo@correo.com">
       </div>
-      <div class="form-group"><label>Marca y Modelo: <span style="color:#c00;">*</span></label><input type="text" id="modelo"></div>
+      <div class="form-group"><label>Marca y Modelo: <span style="color:#c00;">*</span></label><input type="text"
+          id="modelo"></div>
     </div>
 
     <hr style="margin: 15px 0; border-top: 1px solid #eee;">
@@ -568,6 +826,18 @@
       <h3 id="modal-titulo" style="margin-top:0; color:#d32f2f;">Atención</h3>
       <p id="modal-mensaje"></p>
       <button class="modal-btn" onclick="cerrarModal()">Aceptar</button>
+    </div>
+  </div>
+
+  <!-- Modal de confirmación profesional -->
+  <div id="modal-confirmar" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <h3 id="confirm-titulo" style="margin-top:0; color:#333;">¿Confirmar?</h3>
+      <p id="confirm-mensaje" style="font-size:15px;"></p>
+      <div style="display:flex; gap:12px; justify-content:center; margin-top:20px;">
+        <button id="btn-confirmar-si" class="modal-btn" style="background:#d32f2f; min-width:100px;">Sí, cerrar</button>
+        <button id="btn-confirmar-no" class="modal-btn" style="background:#757575; min-width:100px;">Cancelar</button>
+      </div>
     </div>
   </div>
 </body>

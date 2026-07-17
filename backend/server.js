@@ -20,7 +20,24 @@ io.on('connection', (socket) => {
 
   socket.on('lock-service', async (data) => {
     try {
-      const { idServicio, lockedBy } = data;
+      const { idServicio, user: lockedBy } = data;
+      if (!idServicio || !lockedBy) return;
+
+      // Verificar si ya está bloqueado por OTRO usuario
+      const [rows] = await pool.execute(
+        'SELECT lockedBy FROM servicios WHERE idServicio=?',
+        [idServicio]
+      );
+      if (rows.length > 0 && rows[0].lockedBy && rows[0].lockedBy !== lockedBy) {
+        // Ya está bloqueado por otro usuario → rechazar
+        socket.emit('lock-rejected', {
+          idServicio,
+          lockedBy: rows[0].lockedBy,
+          message: `Este servicio lo está editando ${rows[0].lockedBy} ahora mismo.`
+        });
+        return;
+      }
+
       await pool.execute(
         'UPDATE servicios SET lockedBy=?, lockedAt=NOW() WHERE idServicio=?',
         [lockedBy, idServicio]
@@ -47,6 +64,7 @@ io.on('connection', (socket) => {
   socket.on('unlock-service', async (data) => {
     try {
       const { idServicio } = data;
+      if (!idServicio) return;
       await pool.execute(
         'UPDATE servicios SET lockedBy=NULL, lockedAt=NULL WHERE idServicio=?',
         [idServicio]
@@ -67,10 +85,24 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ── Rutas ────────────────────────────────────────────────────
+// ── Frontend (estático) ──────────────────────────────────────
+const path = require('path');
+const rootDir = path.join(__dirname, '..');
+app.use(express.static(rootDir));
+app.use('/APP', express.static(path.join(rootDir, 'APP')));
+app.use('/IMG', express.static(path.join(rootDir, 'IMG')));
+
+// ── Rutas API ───────────────────────────────────────────────
 app.use('/api', require('./routes/auth'));
 app.use('/api/servicios', require('./routes/servicios'));
 app.use('/api/cierres', require('./routes/cierres'));
+
+// ── SPA fallback ────────────────────────────────────────────
+app.get('*', (req, res) => {
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(rootDir, 'APP', 'app.html'));
+  }
+});
 
 // ── Error Handler (debe ir DESPUÉS de todas las rutas) ───────
 app.use(errorHandler);

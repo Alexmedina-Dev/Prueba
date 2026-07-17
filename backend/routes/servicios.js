@@ -4,7 +4,6 @@ const pool = require('../db');
 const auth = require('../middleware/auth');
 const syncSheets = require('../utils/sync-sheets');
 const { logError } = require('../utils/logger');
-const { v4: uuidv4 } = require('uuid');
 
 // GET /api/servicios/abiertos
 router.get('/abiertos', auth, async (req, res) => {
@@ -68,6 +67,38 @@ router.get('/abiertos', auth, async (req, res) => {
       usuario: req.user?.email
     });
     res.status(500).json({ error: 'Error al obtener servicios abiertos' });
+  }
+});
+
+// GET /api/servicios/pendientes — servicios abiertos con días de antigüedad para panel
+router.get('/pendientes', auth, async (req, res) => {
+  try {
+    const [rows] = await pool.execute(`
+      SELECT
+        s.idServicio, s.fecha, s.placa, s.tecnico,
+        s.diagnostico, s.total_repuestos, s.total_mano_obra, s.gran_total,
+        s.estado, s.comentarios,
+        v.modelo,
+        c.nombre AS nombre, c.cedula,
+        DATEDIFF(NOW(), s.fecha) AS dias_abierto
+      FROM servicios s
+      LEFT JOIN vehiculos v ON s.placa = v.placa
+      LEFT JOIN clientes c ON v.cedula_cliente = c.cedula
+      WHERE s.estado = 'Abierto'
+      ORDER BY s.fecha ASC
+    `);
+
+    res.json(rows);
+  } catch (e) {
+    logError({
+      tipo: 'ERROR_DB',
+      ruta: '/api/servicios/pendientes',
+      metodo: 'GET',
+      mensaje: e.message,
+      stack: e.stack,
+      usuario: req.user?.email
+    });
+    res.status(500).json({ error: 'Error al obtener servicios pendientes' });
   }
 });
 
@@ -241,6 +272,7 @@ router.post('/guardar', auth, async (req, res) => {
     const fechaSalida = (estado === 'Cerrado') ? 'NOW()' : null;
 
     // 5. Insert or update servicio
+    let nuevoId = null;
     if (idServicio) {
       // Verificar si ya existe
       const [existing] = await conn.execute(
@@ -275,6 +307,8 @@ router.post('/guardar', auth, async (req, res) => {
               estado, comentarios, idServicio]);
         }
       } else {
+        // idServicio provided but doesn't exist in DB — insert with that ID
+        nuevoId = idServicio;
         if (estado === 'Cerrado' && fechaSalida) {
           await conn.execute(`
             INSERT INTO servicios
@@ -302,8 +336,8 @@ router.post('/guardar', auth, async (req, res) => {
         }
       }
     } else {
-      // Generar idServicio único
-      const nuevoId = `SRV-${uuidv4()}`;
+      // Generar idServicio único (formato corto: SRV-timestamp)
+      nuevoId = `SRV-${Date.now()}`;
       if (estado === 'Cerrado' && fechaSalida) {
         await conn.execute(`
           INSERT INTO servicios
@@ -378,6 +412,53 @@ router.post('/guardar', auth, async (req, res) => {
     await conn.rollback();
     console.error('POST /guardar error:', e.message);
     res.status(500).json({ error: 'Error al guardar servicio: ' + e.message });
+  } finally {
+    conn.release();
+  }
+});
+
+// POST /api/servicios/cerrar-rapido — cerrar servicio directamente desde panel pendientes
+router.post('/cerrar-rapido', auth, async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const { idServicio } = req.body;
+    if (!idServicio) {
+      return res.status(400).json({ error: 'idServicio requerido' });
+    }
+
+    // Verificar que exista y esté abierto
+    const [existing] = await conn.execute(
+      'SELECT idServicio, estado FROM servicios WHERE idServicio = ?', [idServicio]
+    );
+    if (existing.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Servicio no encontrado' });
+    }
+    if (existing[0].estado === 'Cerrado') {
+      await conn.rollback();
+      return res.status(400).json({ error: 'El servicio ya está cerrado' });
+    }
+
+    // Cerrar servicio
+    await conn.execute(`
+      UPDATE servicios SET
+        estado = 'Cerrado',
+        fecha_salida = NOW(),
+        lockedBy = NULL, lockedAt = NULL
+      WHERE idServicio = ?
+    `, [idServicio]);
+
+    await conn.commit();
+
+    // Sync Google Sheets (fuera de transacción)
+    syncSheets({ idServicio, estado: 'Cerrado', fecha_salida: new Date().toISOString() }, 'Cerrado');
+
+    res.json({ ok: true, mensaje: `Servicio ${idServicio} cerrado correctamente.` });
+  } catch (e) {
+    await conn.rollback();
+    console.error('POST /cerrar-rapido error:', e.message);
+    res.status(500).json({ error: 'Error al cerrar servicio: ' + e.message });
   } finally {
     conn.release();
   }
