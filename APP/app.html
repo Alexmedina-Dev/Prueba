@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MotoVerso - Gestión Pro de Órdenes</title>
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+  <script src="app-client.js" defer></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 1000px;
+      margin: auto;
+      background: linear-gradient(1deg, #1a1a1a 0%, #c9a45b 50%, #1a1a1a 100%);
+      background-attachment: fixed;
+      min-height: 100vh;
+    }
+
+    .header-title {
+      text-align: center;
+      color: #ffffff;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .header-logo {
+      width: 390px;
+      height: auto;
+      margin-bottom: 5px;
+      filter: drop-shadow(0 4px 2px rgba(0, 0, 0, 0.9));
+    }
+
+    .header-title p {
+      color: #e0e0e0;
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-top: 5px;
+      font-weight: bold
+    }
+
+    .btn-logout {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: #ffffff;
+      color: #1a1a1a;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: bold;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-logout:hover {
+      background: #f0f0f0;
+    }
+
+    .abiertos-container {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .abiertos-container::-webkit-scrollbar {
+      height: 10px;
+    }
+
+    .abiertos-container::-webkit-scrollbar-thumb {
+      background: #ccc;
+      border-radius: 5px;
+    }
+
+    .tarjeta-moto {
+      background: #fff;
+      border-left: 4px solid #ffb300;
+      padding: 10px;
+      min-width: 130px;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .tarjeta-moto:hover {
+      background: #fff8e1;
+    }
+
+    .tarjeta-moto h4 {
+      margin: 0 0 5px 0;
+      font-size: 14px;
+    }
+
+    .tarjeta-moto p {
+      margin: 0;
+      font-size: 11px;
+      color: #555;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+      font-size: 14px;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .form-row .form-group {
+      flex: 1;
+    }
+
+    .item-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+    }
+
+    .item-table th,
+    .item-table td {
+      border: 1px solid #ddd;
+      padding: 5px;
+      text-align: left;
+    }
+
+    .item-table th {
+      background-color: #f0f0f0;
+      font-size: 13px;
+    }
+
+    .item-table input {
+      border: none;
+      padding: 5px;
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 13px;
+    }
+
+    .btn-add {
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 13px;
+      margin-right: 5px;
+    }
+
+    .btn-del {
+      background-color: #f44336;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+
+    .totales-box {
+      text-align: right;
+      font-size: 18px;
+      font-weight: bold;
+      color: #d32f2f;
+      padding: 10px;
+      background: #fff3e0;
+      border-radius: 4px;
+      margin-bottom: 15px;
+    }
+
+    .btn-container {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    button.action-btn {
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+
+    .btn-guardar {
+      background-color: #ffb300;
+      color: #333;
+    }
+
+    .btn-cerrar {
+      background-color: #d32f2f;
+    }
+
+    .btn-limpiar {
+      background-color: #757575;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn-nueva-orden {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-left: 5px;
+    }
+
+    .section {
+      background: white;
+      border: 1px solid #ddd;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+    }
+
+    .cierre-section {
+      background-color: #e3f2fd;
+      border: 1px solid #90caf9;
+    }
+
+    .cierre-section .form-row {
+      align-items: flex-end;
+    }
+
+    .info-vehiculo {
+      color: #1976d2;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    .locked-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.3);
+      z-index: 999;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .locked-overlay.active {
+      display: flex;
+    }
+
+    .locked-msg {
+      background: white;
+      padding: 20px 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      text-align: center;
+    }
+
+    .locked-msg p {
+      font-size: 16px;
+      font-weight: bold;
+      color: #d32f2f;
+    }
+
+    @media (min-width: 769px) {
+      .tarjeta-moto {
+        min-width: 200px;
+        padding: 15px;
+      }
+
+      .tarjeta-moto h4 {
+        font-size: 16px;
+      }
+
+      .tarjeta-moto p {
+        font-size: 13px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+
+      .header-logo {
+        width: 400px;
+      }
+
+      .btn-logout {
+        position: static;
+        margin-top: 10px;
+        display: inline-block;
+      }
+
+      .form-row {
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .form-row .form-group {
+        flex: auto;
+      }
+
+      .item-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+
+      .item-table thead,
+      .item-table tbody,
+      .item-table tr,
+      .item-table th,
+      .item-table td {
+        display: table-cell;
+      }
+
+      .item-table tr {
+        white-space: nowrap;
+      }
+
+      .btn-add {
+        display: block;
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 5px;
+        padding: 12px;
+        font-size: 14px;
+      }
+
+      .abiertos-container {
+        flex-wrap: nowrap;
+      }
+
+      .btn-container {
+        flex-direction: column;
+      }
+
+      button.action-btn {
+        padding: 14px 20px;
+        min-height: 48px;
+      }
+
+      .cierre-section .form-row {
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .header-logo {
+        width: 300px;
+      }
+
+      .header-title p {
+        font-size: 11px;
+      }
+
+      .section {
+        padding: 15px;
+      }
+    }
+
+    /* Modal de validación */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .modal-box {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+    .modal-box p {
+      font-size: 16px;
+      line-height: 1.6;
+      margin: 15px 0;
+      color: #333;
+    }
+    .modal-btn {
+      background: #d32f2f;
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .modal-btn:hover {
+      background: #b71c1c;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header-title">
+    <img src="../IMG/Logo-app.png" alt="MotoVerso" class="header-logo">
+    <p>Gestión Pro de Órdenes</p>
+    <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+  </div>
+
+  <div id="motos-abiertas" class="abiertos-container"></div>
+  <input type="hidden" id="idServicio" value="">
+
+  <div class="section">
+    <div class="form-row">
+      <div class="form-group" style="flex-grow: 1; margin-bottom:0;">
+        <label>Placa: <span style="color:#c00;">*</span></label>
+        <input type="text" id="placa" style="text-transform: uppercase;"
+          placeholder="Ej: PPP77D" onkeydown="if(event.key==='Enter')buscarPlaca()">
+      </div>
+      <div style="display:flex; align-items:flex-end;">
+        <button class="btn-limpiar" onclick="limpiarFormulario()">Nueva Búsqueda</button>
+        <button class="btn-nueva-orden" onclick="nuevaOrden()">➕ Nueva Orden</button>
+      </div>
+    </div>
+    <div id="info-vehiculo" class="info-vehiculo"></div>
+  </div>
+
+  <div class="section" id="form-registro">
+    <div class="form-row">
+      <div class="form-group"><label>Cédula: <span style="color:#c00;">*</span></label><input type="text" id="cedula"
+          placeholder="Número de cédula"></div>
+      <div class="form-group" style="flex:2;"><label>Nombre: <span style="color:#c00;">*</span></label><input type="text" id="nombre"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Teléfono:</label><input type="text" id="telefono"></div>
+      <div class="form-group"><label>Correo:</label><input type="email" id="correo" placeholder="ejemplo@correo.com">
+      </div>
+      <div class="form-group"><label>Marca y Modelo: <span style="color:#c00;">*</span></label><input type="text" id="modelo"></div>
+    </div>
+
+    <hr style="margin: 15px 0; border-top: 1px solid #eee;">
+    <div class="form-group">
+      <label>Técnico asignado:</label>
+      <select id="tecnico">
+        <option value="" disabled selected>Selecciona un técnico...</option>
+        <option value="Andres">Andres</option>
+        <option value="Brayan">Brayan</option>
+        <option value="Yeison">Yeison</option>
+        <option value="Harold">Harold</option>
+        <option value="Dairon">Dairon</option>
+        <option value="Johan">Johan</option>
+        <option value="Alexander">Alexander</option>
+        <option value="Mauricio">Mauricio</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Diagnóstico:</label><textarea id="diagnostico" rows="2"></textarea></div>
+
+    <hr style="margin: 20px 0; border-top: 2px solid #ccc;">
+    <h3 style="margin-top:0; color:#333;">Desglose de Repuestos y Servicios</h3>
+
+    <table class="item-table" id="tablaItems">
+      <thead>
+        <tr>
+          <th style="width:15%">Tipo</th>
+          <th style="width:15%">Código</th>
+          <th style="width:30%">Descripción</th>
+          <th style="width:10%">Cant.</th>
+          <th style="width:15%">Precio Unit.</th>
+          <th style="width:15%">Total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="cuerpoItems"></tbody>
+    </table>
+
+    <button class="btn-add" onclick="agregarFila('Repuesto')" style="background-color:#4CAF50;">+ Repuesto</button>
+    <button class="btn-add" onclick="agregarFila('Mano de Obra')" style="background-color:#2196F3;">+ Mano de
+      Obra</button>
+    <button class="btn-add" onclick="agregarFila('MO Terceros')" style="background-color:#9C27B0;">+ MO
+      Terceros</button>
+
+    <div class="totales-box" style="margin-top:20px;">
+      <div style="font-size:14px; color:#666;">Total Repuestos: $<span id="lblTotalRepuestos">0</span></div>
+      <div style="font-size:14px; color:#666;">Total Trabajo (Propios): $<span id="lblTotalServicios">0</span></div>
+      <div style="font-size:14px; color:#666;">Total Trabajo (Terceros): $<span id="lblTotalTerceros">0</span></div>
+      <div style="font-size:22px; color:#d32f2f; margin-top:5px;">GRAN TOTAL: $<span id="lblGranTotal">0</span></div>
+    </div>
+
+    <div class="form-group">
+      <label>Comentarios adicionales:</label>
+      <textarea id="comentarios" rows="2" placeholder="Observaciones finales o recomendaciones..."></textarea>
+    </div>
+
+    <div class="btn-container">
+      <button class="action-btn btn-guardar" onclick="procesarServicio('Abierto')">Guardar Avance</button>
+      <button class="action-btn btn-cerrar" onclick="procesarServicio('Cerrado')">Finalizar</button>
+    </div>
+  </div>
+
+  <div class="section cierre-section">
+    <h3 style="margin-bottom:15px;">Cierre Diario de Técnicos</h3>
+    <div class="form-row">
+      <input type="date" id="fechaCierre" style="flex:1;">
+      <select id="tecnicoCierre" style="flex:1;">
+        <option value="Andres">Andres</option>
+        <option value="Brayan">Brayan</option>
+        <option value="Yeison">Yeison</option>
+        <option value="Harold">Harold</option>
+        <option value="Dairon">Dairon</option>
+        <option value="Johan">Johan</option>
+        <option value="Alexander">Alexander</option>
+        <option value="Mauricio">Mauricio</option>
+      </select>
+      <button class="action-btn" style="background-color: #1565c0; width:auto; padding: 12px 24px;"
+        onclick="ejecutarCierre()">Generar</button>
+    </div>
+    <p id="resultadoCierre" style="font-weight:bold; white-space: pre-line; margin-top:10px;"></p>
+  </div>
+
+  <div id="locked-overlay" class="locked-overlay">
+    <div class="locked-msg">
+      <p id="locked-msg-text">Este servicio lo está editando otra persona ahora mismo, espera un momento.</p>
+    </div>
+  </div>
+
+  <!-- Modal de validación profesional -->
+  <div id="modal-validacion" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <h3 id="modal-titulo" style="margin-top:0; color:#d32f2f;">Atención</h3>
+      <p id="modal-mensaje"></p>
+      <button class="modal-btn" onclick="cerrarModal()">Aceptar</button>
+    </div>
+  </div>
+</body>
+
+</html>

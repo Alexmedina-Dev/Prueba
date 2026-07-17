@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+       <!-- Seguridad -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" /> 
+    <!-- Primary Meta Tags -->
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport" />
+    <meta name="description" content="MotoVerso - Sistema de gestión de motocicletas HANNAS MOTOS SAS" />
+    <meta name="theme-color" content="#050505" />
+    <meta name="author" content="Edwin Alexander Medina Martínez Tel:3003949455" />
+     <!--Titulo de pagina-->
+    <title>MotoVerso | Iniciar Sesión</title>
+    <!-- Favicon -->
+    <link href="IMG/Logo.jpg" rel="icon" type="image/jpeg" />
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <!-- Font Awesome -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+      rel="stylesheet"
+    />
+    <!-- Custom Styles & Scripts -->
+    <link href="style.css" rel="stylesheet" />
+    <script src="motoverso.js" defer=""></script>
+    <!-- Security: prevent indexing of login page -->
+    <meta name="robots" content="noindex, nofollow" />
+  </head>
+  <body>
+    <!-- Background -->
+    <div class="bg-system">
+      <div class="bg-noise"></div>
+    </div>
+
+    <!-- Clock -->
+    <div class="clock-block">
+      <div class="clock-time" id="currentTime">00:00</div>
+      <div class="clock-date" id="currentDate">...</div>
+    </div>
+
+    <!-- Main -->
+    <main class="main-container">
+      <!-- Brand Side -->
+      <section class="brand-section">
+        <div class="brand-bike">
+          <div class="bike-img-container">
+            <img
+              alt="Premium Motorcycle"
+              class="bike-main"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1ABdXwYDWz42F0oBwHXFU5BkPsekhRI1M8ps9it76LxsXoihAco0LnZdVoXN8ykzPMwbyEJKiZa6yI-Tepi3vNE0cY-pbZytRFgiUz9JK3CGeVubUm8evqgZYsbpcmeRKDqOib1LuoK-_NEL2QETgtM8VIuwpygjqF65w05XRtml1oKCGKJjvdnvTngg6MgTiv519elhAXI1_uvhcVuvcGjPCH7vKATRH6R8aHzBsjfp1PLsYijZ8MA"
+            />
+            <img
+              alt="MotoVerso Logo"
+              class="main-logo-overlay"
+              src="IMG/Logo-transparente.png"
+            />
+          </div>
+          <div class="brand-content">
+            <h1 class="brand-name">HANNAS MOTOS SAS</h1>
+          </div>
+        </div>
+      </section>
+
+      <!-- Login Side -->
+      <section class="login-section">
+        <div class="glass-card">
+          <header class="login-header">
+            <span class="subtitle">Bienvenido de nuevo</span>
+            <h2 class="title">Inicia sesión</h2>
+            <div class="title-divider"></div>
+          </header>
+          <form autocomplete="off" id="loginForm">
+            <div class="form-group">
+              <div class="input-box">
+                <i class="fa-regular fa-envelope"></i>
+                <input id="email" placeholder="Correo electronico" required="" type="email" />
+              </div>
+            </div>
+            <div class="form-group">
+              <div class="input-box">
+                <i class="fa-solid fa-lock"></i>
+                <input
+                  id="password"
+                  placeholder="Contrasena"
+                  required=""
+                  type="password"
+                />
+                <button class="toggle-password" id="togglePassword" type="button">
+                  <i class="fa-regular fa-eye" id="eyeIcon"></i>
+                </button>
+              </div>
+            </div>
+            <button class="btn-login" id="loginBtn" type="submit">
+              <span class="text">INICIAR SESIÓN</span>
+            </button>
+            <div class="error-msg" id="errorMsg">
+              <i class="fa-solid fa-circle-exclamation"></i>
+              <span>Correo o contraseña incorrectos</span>
+            </div>
+          </form>
+          <a class="forgot-link" href="#">
+            <i class="fa-solid fa-key"></i>
+            <span>Olvidaste tu contraseña?</span>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>&copy; <span id="currentYear"></span> HANNAS MOTOS SAS. Todos los derechos reservados.</span>
+      <span class="footer-credits">Diseñado con <a href="https://stitch.withgoogle.com" target="_blank" rel="noopener">Google Stitch</a> &bull; Desarrollado por <a href="" class="dev-link">Alex Medina</a></span>
+    </footer>
+  </body>
+</html>
