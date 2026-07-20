@@ -265,7 +265,7 @@ function mostrarAbiertos(servicios) {
   });
 }
 
-function cargarDatosServicioAbierto(srv) {
+function cargarDatosServicioAbierto(srv, skipLock) {
   if (servicioBloqueado) return;
 
   document.getElementById('idServicio').value = srv.idServicio || "";
@@ -287,8 +287,8 @@ function cargarDatosServicioAbierto(srv) {
   }
   calcularTotalesGlobales();
 
-  // Bloquear para que nadie más edite este servicio
-  if (srv.idServicio) {
+  // Bloquear para que nadie más edite este servicio (saltar si skipLock=true)
+  if (srv.idServicio && !skipLock) {
     // Verificar si ya está bloqueado por otro usuario
     if (srv.lockedBy && srv.lockedBy !== user) {
       servicioBloqueado = true;
@@ -560,6 +560,15 @@ function setupSocketListeners() {
     servicioBloqueado = false;
     document.getElementById('locked-overlay').classList.remove('active');
     habilitarBotones();
+    // Refrescar datos de abiertos por si cambió el lockedBy
+    cargarAbiertos();
+    // Si estamos viendo el servicio que se liberó, recargar datos (sin re-bloquear)
+    if (data && data.idServicio) {
+      const idActual = document.getElementById('idServicio').value;
+      if (idActual && idActual === data.idServicio) {
+        cargarServicioPorId(data.idServicio, true);
+      }
+    }
   });
 
   socket.on('lock-rejected', (data) => {
@@ -574,7 +583,7 @@ function setupSocketListeners() {
   });
 }
 
-function cargarServicioPorId(idServicio) {
+function cargarServicioPorId(idServicio, skipLock) {
   fetch(`${API_BASE}/api/servicios/${idServicio}`, {
     headers: getAuthHeaders(false)
   })
@@ -583,7 +592,7 @@ function cargarServicioPorId(idServicio) {
       return res.json();
     })
     .then(srv => {
-      cargarDatosServicioAbierto(srv);
+      cargarDatosServicioAbierto(srv, skipLock);
     })
     .catch(err => {
       console.error("Error recargando servicio:", err);

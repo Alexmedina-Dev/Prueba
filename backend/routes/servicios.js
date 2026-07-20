@@ -427,10 +427,20 @@ router.post('/cerrar-rapido', auth, async (req, res) => {
       return res.status(400).json({ error: 'idServicio requerido' });
     }
 
-    // Verificar que exista y esté abierto
-    const [existing] = await conn.execute(
-      'SELECT idServicio, estado FROM servicios WHERE idServicio = ?', [idServicio]
-    );
+    // Verificar que exista y esté abierto — obtener datos completos para Sheets
+    const [existing] = await conn.execute(`
+      SELECT
+        s.idServicio, s.fecha, s.placa, s.tecnico,
+        s.diagnostico, s.detalle_repuestos, s.detalle_servicios,
+        s.total_repuestos, s.total_mano_obra, s.gran_total,
+        s.estado, s.comentarios, s.fecha_salida,
+        v.modelo,
+        c.nombre AS nombre, c.telefono AS telefono, c.correo AS correo, c.cedula
+      FROM servicios s
+      LEFT JOIN vehiculos v ON s.placa = v.placa
+      LEFT JOIN clientes c ON v.cedula_cliente = c.cedula
+      WHERE s.idServicio = ?
+    `, [idServicio]);
     if (existing.length === 0) {
       await conn.rollback();
       return res.status(404).json({ error: 'Servicio no encontrado' });
@@ -439,6 +449,8 @@ router.post('/cerrar-rapido', auth, async (req, res) => {
       await conn.rollback();
       return res.status(400).json({ error: 'El servicio ya está cerrado' });
     }
+
+    const srvData = existing[0];
 
     // Cerrar servicio
     await conn.execute(`
@@ -451,8 +463,25 @@ router.post('/cerrar-rapido', auth, async (req, res) => {
 
     await conn.commit();
 
-    // Sync Google Sheets (fuera de transacción)
-    syncSheets({ idServicio, estado: 'Cerrado', fecha_salida: new Date().toISOString() }, 'Cerrado');
+    // Sync Google Sheets (fuera de transacción) — con datos completos
+    syncSheets({
+      idServicio: srvData.idServicio,
+      fecha: srvData.fecha,
+      placa: srvData.placa,
+      modelo: srvData.modelo || '',
+      cedula: srvData.cedula || '',
+      cliente: srvData.nombre || '',
+      telefono: srvData.telefono || '',
+      correo: srvData.correo || '',
+      tecnico: srvData.tecnico || '',
+      diagnostico: srvData.diagnostico || '',
+      comentarios: srvData.comentarios || '',
+      total_repuestos: srvData.total_repuestos || 0,
+      total_mano_obra: srvData.total_mano_obra || 0,
+      gran_total: srvData.gran_total || 0,
+      estado: 'Cerrado',
+      fecha_salida: new Date().toISOString()
+    }, 'Cerrado');
 
     res.json({ ok: true, mensaje: `Servicio ${idServicio} cerrado correctamente.` });
   } catch (e) {

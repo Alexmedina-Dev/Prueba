@@ -23,25 +23,36 @@ io.on('connection', (socket) => {
       const { idServicio, user: lockedBy } = data;
       if (!idServicio || !lockedBy) return;
 
-      // Verificar si ya está bloqueado por OTRO usuario
-      const [rows] = await pool.execute(
-        'SELECT lockedBy FROM servicios WHERE idServicio=?',
-        [idServicio]
-      );
-      if (rows.length > 0 && rows[0].lockedBy && rows[0].lockedBy !== lockedBy) {
-        // Ya está bloqueado por otro usuario → rechazar
-        socket.emit('lock-rejected', {
-          idServicio,
-          lockedBy: rows[0].lockedBy,
-          message: `Este servicio lo está editando ${rows[0].lockedBy} ahora mismo.`
-        });
-        return;
+      // Usar transacción con FOR UPDATE para evitar race condition
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+        const [rows] = await conn.execute(
+          'SELECT lockedBy FROM servicios WHERE idServicio=? FOR UPDATE',
+          [idServicio]
+        );
+        if (rows.length > 0 && rows[0].lockedBy && rows[0].lockedBy !== lockedBy) {
+          await conn.rollback();
+          conn.release();
+          socket.emit('lock-rejected', {
+            idServicio,
+            lockedBy: rows[0].lockedBy,
+            message: `Este servicio lo está editando ${rows[0].lockedBy} ahora mismo.`
+          });
+          return;
+        }
+        await conn.execute(
+          'UPDATE servicios SET lockedBy=?, lockedAt=NOW() WHERE idServicio=?',
+          [lockedBy, idServicio]
+        );
+        await conn.commit();
+        conn.release();
+      } catch (e) {
+        await conn.rollback();
+        conn.release();
+        throw e;
       }
 
-      await pool.execute(
-        'UPDATE servicios SET lockedBy=?, lockedAt=NOW() WHERE idServicio=?',
-        [lockedBy, idServicio]
-      );
       io.emit('service-locked', { idServicio, user: lockedBy });
 
       // Auto-unlock after 3 minutes

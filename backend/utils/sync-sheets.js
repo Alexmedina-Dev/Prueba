@@ -90,7 +90,7 @@ async function syncSheets(datos, estado) {
 
     // ── 3. Sincronizar Servicio principal en hoja "Servicios" ──
     // Formato original del app.js:
-    // A=id, B=fecha, C=placa, D=tecnico, E=diagnostico, F=txtRep, G=txtSrv, H=totalRep, I=totalMO, J=granTotal, K=estado, L=comentarios, M=fechaSalida
+    // A=id, B=fecha, C=placa, D=marca_modelo, E=tecnico, F=diagnostico, G=txtRep, H=txtSrv, I=totalRep, J=totalMO, K=granTotal, L=estado, M=comentarios, N=fechaSalida
     
     // Generar texto formateado de repuestos y servicios (como app.js original)
     let txtRep = "";
@@ -134,6 +134,7 @@ async function syncSheets(datos, estado) {
       datos.idServicio,
       fechaColombia,
       datos.placa,
+      datos.modelo || '',
       datos.tecnico,
       datos.diagnostico || '',
       txtRep,
@@ -156,7 +157,7 @@ async function syncSheets(datos, estado) {
     } else {
       await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'Servicios!A:M',
+        range: 'Servicios!A:N',
         valueInputOption: 'USER_ENTERED',
         requestBody: { values: [servicioData] }
       });
