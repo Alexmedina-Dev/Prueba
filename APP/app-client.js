@@ -13,6 +13,30 @@ function getUserName() {
   }
 }
 
+function mostrarSaludoUsuario() {
+  try {
+    const u = JSON.parse(localStorage.getItem('user') || '{}');
+    const nombre = u.nombre || 'Usuario';
+    const role = u.role || 'operador';
+    const roleMap = {
+      'admin': { label: 'Administrador', class: 'role-admin' },
+      'developer': { label: 'Developer', class: 'role-developer' },
+      'operador': { label: 'Operador', class: 'role-operador' },
+      'tecnico': { label: 'Técnico', class: 'role-tecnico' }
+    };
+    const roleInfo = roleMap[role] || roleMap['operador'];
+    const greetingEl = document.getElementById('userGreeting');
+    if (greetingEl) {
+      greetingEl.innerHTML = `👋 Hola, <strong>${nombre}</strong> <span class="role-badge ${roleInfo.class}">${roleInfo.label}</span>`;
+    }
+  } catch(e) {
+    console.error('Error mostrando saludo:', e);
+  }
+}
+
+// Llamar al cargar la página
+document.addEventListener('DOMContentLoaded', mostrarSaludoUsuario);
+
 // Helper: obtener headers con JWT token
 function getAuthHeaders(contentType = true) {
   const token = localStorage.getItem('token');
@@ -74,6 +98,134 @@ function cerrarSesion() {
   localStorage.removeItem('user');
   window.location.href = '../index.html';
 }
+
+// ── Modal Cambiar Contraseña ──────────────────────────────
+
+function mostrarModalPassword() {
+  // Llenar campo oculto de username para que Chrome pueda asociar la contraseña
+  try {
+    const u = JSON.parse(localStorage.getItem('user') || '{}');
+    document.getElementById('pwd-username').value = u.email || '';
+  } catch(e) {}
+  
+  document.getElementById('modal-password').classList.add('active');
+  document.getElementById('pwd-mensaje').innerText = '';
+  document.getElementById('pwd-mensaje').className = 'pwd-msg';
+  document.getElementById('pwd-actual').focus();
+}
+
+function generarPasswordSegura() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+  let password = '';
+  password += chars.charAt(Math.floor(Math.random() * 26)); // Mayúscula
+  password += chars.charAt(Math.floor(Math.random() * 26) + 26); // Minúscula
+  password += chars.charAt(Math.floor(Math.random() * 10) + 52); // Número
+  password += chars.charAt(Math.floor(Math.random() * 8) + 62); // Especial
+  for (let i = 4; i < 16; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  // Mezclar
+  password = password.split('').sort(() => Math.random() - 0.5).join('');
+  
+  document.getElementById('pwd-nueva').value = password;
+  document.getElementById('pwd-confirmar').value = password;
+  
+  // Mostrar mensaje temporal
+  const msgEl = document.getElementById('pwd-mensaje');
+  msgEl.innerText = '🔑 Contraseña segura generada: ' + password;
+  msgEl.className = 'pwd-msg success';
+  
+  // Seleccionar el texto para que el usuario pueda copiarlo
+  setTimeout(() => {
+    document.getElementById('pwd-nueva').select();
+  }, 100);
+}
+
+function cerrarModalPassword() {
+  document.getElementById('modal-password').classList.remove('active');
+  document.getElementById('pwd-actual').value = '';
+  document.getElementById('pwd-nueva').value = '';
+  document.getElementById('pwd-confirmar').value = '';
+  document.getElementById('pwd-mensaje').innerText = '';
+  document.getElementById('pwd-mensaje').className = 'pwd-msg';
+  document.getElementById('pwd-btn-guardar').disabled = false;
+}
+
+async function cambiarPassword(e) {
+  if (e) e.preventDefault();
+  
+  const actual = document.getElementById('pwd-actual').value;
+  const nueva = document.getElementById('pwd-nueva').value;
+  const confirmar = document.getElementById('pwd-confirmar').value;
+  const msgEl = document.getElementById('pwd-mensaje');
+  const btnGuardar = document.getElementById('pwd-btn-guardar');
+
+  msgEl.className = 'pwd-msg error';
+
+  if (!actual || !nueva || !confirmar) {
+    msgEl.innerText = 'Todos los campos son obligatorios.';
+    return false;
+  }
+
+  if (nueva !== confirmar) {
+    msgEl.innerText = 'La nueva contraseña y la confirmación no coinciden.';
+    return false;
+  }
+
+  if (nueva.length < 6) {
+    msgEl.innerText = 'La nueva contraseña debe tener al menos 6 caracteres.';
+    return false;
+  }
+
+  btnGuardar.disabled = true;
+  msgEl.innerText = 'Guardando...';
+  msgEl.className = 'pwd-msg';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/change-password`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ currentPassword: actual, newPassword: nueva })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (res.status === 401) {
+      msgEl.className = 'pwd-msg error';
+      msgEl.innerText = data.error || 'Contraseña actual incorrecta';
+      btnGuardar.disabled = false;
+      return false;
+    }
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Error del servidor');
+    }
+
+    msgEl.className = 'pwd-msg success';
+    msgEl.innerText = data.mensaje || 'Contraseña actualizada correctamente';
+
+    setTimeout(() => {
+      cerrarModalPassword();
+    }, 1500);
+  } catch (err) {
+    console.error('Error cambiando contraseña:', err);
+    msgEl.className = 'pwd-msg error';
+    msgEl.innerText = err.message || 'No se pudo cambiar la contraseña. Intenta de nuevo.';
+    btnGuardar.disabled = false;
+  }
+  
+  return false;
+}
+
+// Cerrar modal de password con Escape
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('modal-password');
+    if (modal && modal.classList.contains('active')) {
+      cerrarModalPassword();
+    }
+  }
+});
 
 window.onload = function () {
   cargarAbiertos();
@@ -153,8 +305,11 @@ function validarFormulario() {
 }
 
 function agregarFila(tipo, codigo = "", desc = "", cant = 1, precio = 0, total = 0) {
-  const tbody = document.getElementById('cuerpoItems');
+  const tbodyId = tipo === 'Repuesto' ? 'cuerpoRepuestos' :
+                  tipo === 'Mano de Obra' ? 'cuerpoManoObra' : 'cuerpoTerceros';
+  const tbody = document.getElementById(tbodyId);
   const tr = document.createElement('tr');
+  tr.setAttribute('data-type', tipo);
   // Solo mostrar valor formateado si precio es realmente > 0
   const precioStr = (precio && parseFloat(precio) > 0) ? formatoDinero(precio) : '';
   // Placeholder según tipo de servicio
@@ -162,13 +317,12 @@ function agregarFila(tipo, codigo = "", desc = "", cant = 1, precio = 0, total =
                           tipo === 'Mano de Obra' ? 'Ej: Mano de obra...' : 
                           'Ej: Reparación externa...';
   tr.innerHTML = `
-    <td><input type="text" value="${tipo}" readonly style="background:#eee; font-size:12px; color:#555;"></td>
-    <td><input type="text" class="i-codigo" value="${codigo}" placeholder="${tipo === 'Repuesto' ? 'Ej: REF01' : '---'}"></td>
-    <td><input type="text" class="i-desc" value="${desc}" placeholder="${placeholderDesc}"></td>
-    <td><input type="number" class="i-cant" value="${cant}" oninput="calcularFila(this)"></td>
-    <td><input type="text" class="i-precio" value="${precioStr}" placeholder="$0" oninput="calcularFila(this)" onkeydown="moverFocusPrecio(this, event)"></td>
-    <td><input type="text" class="i-total" value="${formatoDinero(total)}" readonly style="background:#eee; font-weight:bold;"></td>
-    <td style="text-align:center;"><button class="btn-del" onclick="eliminarFila(this)">X</button></td>
+    <td data-label="Código"><input type="text" class="i-codigo" value="${codigo}" placeholder="${tipo === 'Repuesto' ? 'Ej: REF01' : '---'}"></td>
+    <td data-label="Descripción"><input type="text" class="i-desc" value="${desc}" placeholder="${placeholderDesc}"></td>
+    <td data-label="Cant."><input type="number" class="i-cant" value="${cant}" oninput="calcularFila(this)"></td>
+    <td data-label="Precio Unit."><input type="text" class="i-precio" value="${precioStr}" placeholder="$0" oninput="calcularFila(this)" onkeydown="moverFocusPrecio(this, event)"></td>
+    <td data-label="Total"><input type="text" class="i-total" value="${formatoDinero(total)}" readonly style="background:#eee; font-weight:bold;"></td>
+    <td><button class="btn-del" onclick="eliminarFila(this)">X</button></td>
   `;
   tbody.appendChild(tr);
   calcularTotalesGlobales();
@@ -178,19 +332,22 @@ function agregarFila(tipo, codigo = "", desc = "", cant = 1, precio = 0, total =
 function moverFocusPrecio(input, event) {
   if (event.key === 'Enter') {
     event.preventDefault();
-    const todasFilas = document.querySelectorAll('#cuerpoItems tr');
+    const tbody = input.closest('tbody');
+    const todasFilas = tbody.querySelectorAll('tr');
     const filaActual = input.closest('tr');
     let idxFila = -1;
     for (let i = 0; i < todasFilas.length; i++) {
       if (todasFilas[i] === filaActual) { idxFila = i; break; }
     }
-    // Si hay siguiente fila, ir a su precio
+    // Si hay siguiente fila en la misma sección, ir a su precio
     if (idxFila >= 0 && idxFila < todasFilas.length - 1) {
       const siguientePrecio = todasFilas[idxFila + 1].querySelector('.i-precio');
       if (siguientePrecio) siguientePrecio.focus();
     } else {
-      // Última fila: ir al botón de agregar repuesto
-      document.querySelector('.btn-add').focus();
+      // Última fila de la sección: ir al botón de agregar de esa sección
+      const table = tbody.closest('table');
+      const btnAdd = table ? table.nextElementSibling : null;
+      if (btnAdd && btnAdd.classList.contains('btn-add')) btnAdd.focus();
     }
   }
 }
@@ -214,8 +371,8 @@ function calcularTotalesGlobales() {
   let totalSrvPropios = 0;
   let totalSrvTerceros = 0;
 
-  document.querySelectorAll("#cuerpoItems tr").forEach(tr => {
-    const tipo = tr.querySelector("td input").value;
+  document.querySelectorAll("#cuerpoRepuestos tr, #cuerpoManoObra tr, #cuerpoTerceros tr").forEach(tr => {
+    const tipo = tr.getAttribute('data-type') || "";
     const cant = parseFloat(tr.querySelector(".i-cant").value) || 0;
     const precio = parseCurrency(tr.querySelector(".i-precio").value);
     const totalFila = cant * precio;
@@ -253,12 +410,14 @@ function mostrarAbiertos(servicios) {
   contenedor.innerHTML = '';
 
   servicios.forEach(srv => {
+    const bloqueadoPorOtro = srv.lockedBy && srv.lockedBy !== user;
     const div = document.createElement('div');
-    div.className = 'tarjeta-moto';
+    div.className = 'tarjeta-moto' + (bloqueadoPorOtro ? ' bloqueada' : '');
     div.innerHTML = `
       <h4>${srv.placa}</h4>
       <p><b>Moto:</b> ${srv.modelo}</p>
       <p><b>Tec:</b> ${srv.tecnico}</p>
+      ${bloqueadoPorOtro ? `<span class="lock-badge">🔒 ${srv.lockedBy}</span>` : ''}
     `;
     div.onclick = () => cargarDatosServicioAbierto(srv);
     contenedor.appendChild(div);
@@ -281,7 +440,9 @@ function cargarDatosServicioAbierto(srv, skipLock) {
   document.getElementById('placa').disabled = true;  // Bloquear placa - no se puede hacer click
   document.getElementById('info-vehiculo').innerText = "Editando orden abierta.";
 
-  document.getElementById("cuerpoItems").innerHTML = "";
+  document.getElementById("cuerpoRepuestos").innerHTML = "";
+  document.getElementById("cuerpoManoObra").innerHTML = "";
+  document.getElementById("cuerpoTerceros").innerHTML = "";
   if (srv.items && srv.items.length > 0) {
     srv.items.forEach(item => agregarFila(item.tipo, item.codigo, item.desc, item.cant, item.precio, item.total));
   }
@@ -304,7 +465,7 @@ function cargarDatosServicioAbierto(srv, skipLock) {
   }
 }
 
-function buscarPlaca() {
+function nuevaBusqueda() {
   const placa = document.getElementById('placa').value.trim().toUpperCase();
   if (placa.length < 3) return;
   document.getElementById('info-vehiculo').innerText = "Buscando...";
@@ -324,8 +485,10 @@ function buscarPlaca() {
         cargarDatosServicioAbierto(existente);
         document.getElementById('info-vehiculo').innerText = "Orden abierta encontrada. Editando.";
       } else {
-        // No hay orden abierta → informar que use "Nueva Orden"
-        document.getElementById('info-vehiculo').innerText = "No hay orden abierta para esta placa. Usa 'Nueva Orden' para crear una.";
+        // No hay orden abierta → informar que use "Nueva Orden" y mantener formulario limpio
+        document.getElementById('info-vehiculo').innerText = "No hay orden abierta para esta placa. Use 'Nueva Orden' para crear una.";
+        limpiarFormulario();
+        document.getElementById('placa').value = placa;
         document.getElementById('placa').disabled = false;
       }
     })
@@ -340,8 +503,8 @@ function procesarServicio(estado) {
   let totalRepRaw = 0;
   let totalSrvRaw = 0;
 
-  document.querySelectorAll("#cuerpoItems tr").forEach(tr => {
-    let tipo = tr.querySelector("td input").value;
+  document.querySelectorAll("#cuerpoRepuestos tr, #cuerpoManoObra tr, #cuerpoTerceros tr").forEach(tr => {
+    let tipo = tr.getAttribute('data-type') || "";
     let codigo = tr.querySelector(".i-codigo").value;
     let desc = tr.querySelector(".i-desc").value;
     let cant = parseFloat(tr.querySelector(".i-cant").value) || 0;
@@ -445,26 +608,69 @@ function procesarServicio(estado) {
 }
 
 function nuevaOrden() {
+  const placa = document.getElementById('placa').value.trim().toUpperCase();
+  if (!placa) {
+    mostrarModal("Atención", "Ingrese una placa primero");
+    return;
+  }
+
   // Limpiar cualquier bloqueo residual
   servicioBloqueado = false;
   document.getElementById('locked-overlay').classList.remove('active');
 
-  document.getElementById('idServicio').value = '';
-  document.getElementById('placa').value = '';
-  document.getElementById('cedula').value = '';
-  document.getElementById('nombre').value = '';
-  document.getElementById('telefono').value = '';
-  document.getElementById('correo').value = '';
-  document.getElementById('modelo').value = '';
-  document.getElementById('tecnico').value = '';
-  document.getElementById('diagnostico').value = '';
-  document.getElementById('comentarios').value = '';
-  document.getElementById('cuerpoItems').innerHTML = '';
-  document.getElementById('info-vehiculo').innerText = 'Nueva orden.';
-  document.getElementById('placa').disabled = false;
-  calcularTotalesGlobales();
-  habilitarBotones();
-  document.getElementById('placa').focus();
+  fetch(`${API_BASE}/api/servicios/buscar-placa`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ placa })
+  })
+    .then(res => {
+      if (!res.ok) throw new Error('Error HTTP ' + res.status);
+      return res.json();
+    })
+    .then(res => {
+      if (res.existe === true) {
+        // Cliente existente → auto-llenar
+        document.getElementById('cedula').value = res.cliente.cedula || '';
+        document.getElementById('nombre').value = res.cliente.nombre || '';
+        document.getElementById('telefono').value = res.cliente.telefono || '';
+        document.getElementById('correo').value = res.cliente.correo || '';
+        document.getElementById('modelo').value = res.vehiculo.modelo || '';
+        document.getElementById('placa').value = placa;
+        document.getElementById('idServicio').value = '';
+        document.getElementById('tecnico').value = '';
+        document.getElementById('diagnostico').value = '';
+        document.getElementById('comentarios').value = '';
+        document.getElementById("cuerpoRepuestos").innerHTML = '';
+        document.getElementById("cuerpoManoObra").innerHTML = '';
+        document.getElementById("cuerpoTerceros").innerHTML = '';
+        calcularTotalesGlobales();
+        document.getElementById('info-vehiculo').innerText = "Cliente encontrado. Datos cargados. Complete la orden.";
+      } else {
+        // Nuevo cliente → limpiar todo excepto placa
+        document.getElementById('idServicio').value = '';
+        document.getElementById('cedula').value = '';
+        document.getElementById('nombre').value = '';
+        document.getElementById('telefono').value = '';
+        document.getElementById('correo').value = '';
+        document.getElementById('modelo').value = '';
+        document.getElementById('tecnico').value = '';
+        document.getElementById('diagnostico').value = '';
+        document.getElementById('comentarios').value = '';
+        document.getElementById("cuerpoRepuestos").innerHTML = '';
+        document.getElementById("cuerpoManoObra").innerHTML = '';
+        document.getElementById("cuerpoTerceros").innerHTML = '';
+        document.getElementById('placa').value = placa;
+        calcularTotalesGlobales();
+        document.getElementById('info-vehiculo').innerText = "Nuevo cliente. Complete los datos.";
+      }
+      // Asegurar que todo sea editable y la placa no esté disabled
+      document.getElementById('placa').disabled = false;
+      habilitarBotones();
+    })
+    .catch(err => {
+      console.error("Error buscando placa:", err);
+      document.getElementById('info-vehiculo').innerText = "Error al buscar cliente.";
+    });
 }
 
 function limpiarFormulario() {
@@ -480,7 +686,9 @@ function limpiarFormulario() {
   document.getElementById('placa').disabled = false; // Habilitar para buscar por placa
   document.getElementById('info-vehiculo').innerText = '🔍 Escribe la placa y presiona Enter para buscar.';
   document.getElementById('idServicio').value = '';
-  document.getElementById("cuerpoItems").innerHTML = "";
+  document.getElementById("cuerpoRepuestos").innerHTML = "";
+  document.getElementById("cuerpoManoObra").innerHTML = "";
+  document.getElementById("cuerpoTerceros").innerHTML = "";
   calcularTotalesGlobales();
 }
 
@@ -544,6 +752,7 @@ function setupSocketListeners() {
   });
 
   socket.on('service-locked', (data) => {
+    cargarAbiertos();
     if (data.user === user) return;
     // Solo bloquear si estamos viendo el MISMO servicio
     const idActual = document.getElementById('idServicio').value;

@@ -102,11 +102,13 @@ const rootDir = path.join(__dirname, '..');
 app.use(express.static(rootDir));
 app.use('/APP', express.static(path.join(rootDir, 'APP')));
 app.use('/IMG', express.static(path.join(rootDir, 'IMG')));
+app.use('/ADMIN', express.static(path.join(rootDir, 'ADMIN')));
 
 // ── Rutas API ───────────────────────────────────────────────
 app.use('/api', require('./routes/auth'));
 app.use('/api/servicios', require('./routes/servicios'));
 app.use('/api/cierres', require('./routes/cierres'));
+app.use('/api/admin', require('./routes/admin'));
 
 // ── SPA fallback ────────────────────────────────────────────
 app.get('*', (req, res) => {

@@ -22,18 +22,20 @@ async function logError({ tipo = 'ERROR', ruta, metodo, mensaje, stack, datos, u
   const fecha = new Date();
   const fechaStr = fecha.toISOString();
 
-  // 1. Guardar en archivo de texto (siempre funciona, incluso si MySQL falla)
-  const logLine = `[${fechaStr}] [${tipo}] ${metodo || 'GET'} ${ruta || 'unknown'} | ${mensaje} | IP: ${ip || 'unknown'} | Usuario: ${usuario || 'anonimo'}\n`;
-  
+  // 1. Guardar en archivo de texto — un solo write async, no bloquea el event loop
+  let logBlock = `[${fechaStr}] [${tipo}] ${metodo || 'GET'} ${ruta || 'unknown'} | ${mensaje} | IP: ${ip || 'unknown'} | Usuario: ${usuario || 'anonimo'}\n`;
+  if (stack) logBlock += `STACK: ${stack}\n`;
+  if (datos) logBlock += `DATOS: ${JSON.stringify(datos).substring(0, 500)}\n`;
+  logBlock += '---\n';
+
+  const MAX_LOG_SIZE = 5 * 1024 * 1024; // 5MB por archivo
   try {
-    fs.appendFileSync(LOG_FILE, logLine);
-    if (stack) {
-      fs.appendFileSync(LOG_FILE, `STACK: ${stack}\n`);
+    if (fs.existsSync(LOG_FILE) && fs.statSync(LOG_FILE).size > MAX_LOG_SIZE) {
+      fs.renameSync(LOG_FILE, path.join(LOGS_DIR, `errores-${Date.now()}.log`));
     }
-    if (datos) {
-      fs.appendFileSync(LOG_FILE, `DATOS: ${JSON.stringify(datos).substring(0, 500)}\n`);
-    }
-    fs.appendFileSync(LOG_FILE, '---\n');
+    fs.appendFile(LOG_FILE, logBlock, (err) => {
+      if (err) console.error('No se pudo escribir en archivo de log:', err.message);
+    });
   } catch (fileErr) {
     console.error('No se pudo escribir en archivo de log:', fileErr.message);
   }

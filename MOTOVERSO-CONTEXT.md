@@ -6,6 +6,16 @@
 
 ---
 
+##  TIPOS DE MANTENIMIENTO  
+
+> Siguiendo el estándar ISO/IEC 14764, se definen cuatro tipos de mantenimiento para el sistema 
+-  Mantenimiento Preventivo
+-  Mantenimiento Correctivo
+-  Mantenimiento Adaptativo
+-  Mantenimiento Perfectivo
+
+
+
 ## 1. Descripción del Proyecto
 
 **MOTOVERSO** es un sistema de gestión de órdenes de servicio para un taller de motos en Colombia (HANNAS MOTOS SAS). 

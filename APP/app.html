@@ -47,6 +47,32 @@
       font-weight: bold
     }
 
+    .user-greeting {
+      text-align: center;
+      margin: 8px 0;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      display: inline-block;
+      font-size: 14px;
+      color: #ffffff;
+    }
+
+    .user-greeting .role-badge {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .role-admin { background: #d32f2f; color: #fff; }
+    .role-developer { background: #1976d2; color: #fff; }
+    .role-operador { background: #388e3c; color: #fff; }
+    .role-tecnico { background: #f57c00; color: #fff; }
+
     .btn-logout {
       position: absolute;
       top: 0;
@@ -64,6 +90,24 @@
 
     .btn-logout:hover {
       background: #f0f0f0;
+    }
+
+    .btn-change-password {
+      display: block;
+      margin: 6px auto 0;
+      background: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 4px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .btn-change-password:hover {
+      background: rgba(255, 255, 255, 0.25);
     }
 
     .pendientes-wrap {
@@ -134,6 +178,20 @@
       background: #fff8e1;
     }
 
+    .tarjeta-moto.bloqueada {
+      border-left-color: #d32f2f;
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .tarjeta-moto .lock-badge {
+      display: inline-block;
+      margin-top: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #d32f2f;
+    }
+
     .tarjeta-moto h4 {
       margin: 0 0 5px 0;
       font-size: 14px;
@@ -180,6 +238,15 @@
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 10px;
+      table-layout: auto;
+    }
+
+    /* En móvil: tabla se expande según contenido */
+    @media (max-width: 768px) {
+      .item-table {
+        width: auto;
+        min-width: 100%;
+      }
     }
 
     .item-table th,
@@ -187,11 +254,47 @@
       border: 1px solid #ddd;
       padding: 5px;
       text-align: left;
+      white-space: normal;
+      word-wrap: break-word;
     }
 
     .item-table th {
       background-color: #f0f0f0;
       font-size: 13px;
+      white-space: nowrap;
+    }
+
+    /* Solo Descripción se expande y salta de línea */
+    .item-table th:nth-child(2),
+    .item-table td:nth-child(2) {
+      white-space: normal;
+      word-wrap: break-word;
+      min-width: 100px;
+    }
+
+    /* Código: sin salto, ancho mínimo */
+    .item-table th:nth-child(1),
+    .item-table td:nth-child(1) {
+      white-space: nowrap;
+      min-width: 80px;
+    }
+
+    /* Cant.: sin salto */
+    .item-table th:nth-child(3),
+    .item-table td:nth-child(3) {
+      white-space: nowrap;
+      min-width: 40px;
+      text-align: center;
+    }
+
+    /* Precio y Total: sin salto, ancho suficiente para números */
+    .item-table th:nth-child(4),
+    .item-table td:nth-child(4),
+    .item-table th:nth-child(5),
+    .item-table td:nth-child(5) {
+      white-space: nowrap;
+      min-width: 90px;
+      text-align: right;
     }
 
     .item-table input {
@@ -420,24 +523,6 @@
         flex: auto;
       }
 
-      .item-table {
-        display: block;
-        overflow-x: auto;
-        white-space: nowrap;
-      }
-
-      .item-table thead,
-      .item-table tbody,
-      .item-table tr,
-      .item-table th,
-      .item-table td {
-        display: table-cell;
-      }
-
-      .item-table tr {
-        white-space: nowrap;
-      }
-
       .btn-add {
         display: block;
         width: 100%;
@@ -535,6 +620,108 @@
 
     .modal-btn:hover {
       background: #b71c1c;
+    }
+
+    /* ── Modal Cambiar Contraseña ──────────────── */
+    .pwd-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .pwd-modal-overlay.active {
+      display: flex;
+    }
+
+    .pwd-modal-box {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      max-width: 360px;
+      width: 90%;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .pwd-modal-box h3 {
+      margin-top: 0;
+      color: #333;
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+
+    .pwd-modal-box .form-group {
+      margin-bottom: 12px;
+    }
+
+    .pwd-modal-box .form-group label {
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 4px;
+    }
+
+    .pwd-modal-box .form-group input {
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+
+    .pwd-msg {
+      font-size: 13px;
+      margin: 10px 0;
+      min-height: 18px;
+    }
+
+    .pwd-msg.error {
+      color: #d32f2f;
+    }
+
+    .pwd-msg.success {
+      color: #2e7d32;
+    }
+
+    .pwd-modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .pwd-modal-actions button {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .pwd-btn-guardar {
+      background: #2e7d32;
+      color: white;
+    }
+
+    .pwd-btn-guardar:hover {
+      background: #1b5e20;
+    }
+
+    .pwd-btn-guardar:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+
+    .pwd-btn-cancelar {
+      background: #e0e0e0;
+      color: #333;
+    }
+
+    .pwd-btn-cancelar:hover {
+      background: #bdbdbd;
     }
 
     /* ── Dropdown Pendientes ──────────────── */
@@ -684,6 +871,8 @@
   <div class="header-title">
     <img src="../IMG/Logo-app.png" alt="MotoVerso" class="header-logo">
     <p>Gestión Pro de Órdenes</p>
+    <div class="user-greeting" id="userGreeting"></div>
+    <button class="btn-change-password" onclick="mostrarModalPassword()">🔒 Cambiar Contraseña</button>
     <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
     <div class="pendientes-wrap">
       <button class="btn-pendientes" onclick="togglePendientes(event)">
@@ -710,10 +899,10 @@
       <div class="form-group" style="flex-grow: 1; margin-bottom:0;">
         <label>Placa: <span style="color:#c00;">*</span></label>
         <input type="text" id="placa" style="text-transform: uppercase;" placeholder="Ej: PPP77D, LLT25Ñ"
-          onkeydown="if(event.key==='Enter')buscarPlaca()">
+          onkeydown="if(event.key==='Enter')nuevaBusqueda()">
       </div>
       <div style="display:flex; align-items:flex-end;">
-        <button class="btn-limpiar" onclick="limpiarFormulario()">Nueva Búsqueda</button>
+        <button class="btn-limpiar" onclick="nuevaBusqueda()">Nueva Búsqueda</button>
         <button class="btn-nueva-orden" onclick="nuevaOrden()">➕ Nueva Orden</button>
       </div>
     </div>
@@ -755,26 +944,62 @@
     <hr style="margin: 20px 0; border-top: 2px solid #ccc;">
     <h3 style="margin-top:0; color:#333;">Desglose de Repuestos y Servicios</h3>
 
-    <table class="item-table" id="tablaItems">
+    <!-- REPUESTOS -->
+    <h4 style="margin:12px 0 6px 0; color:#4CAF50; font-size:15px; border-left:4px solid #4CAF50; padding-left:8px;">Repuestos</h4>
+    <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+    <table class="item-table" id="tablaRepuestos">
       <thead>
         <tr>
-          <th style="width:15%">Tipo</th>
-          <th style="width:15%">Código</th>
-          <th style="width:30%">Descripción</th>
-          <th style="width:10%">Cant.</th>
-          <th style="width:15%">Precio Unit.</th>
-          <th style="width:15%">Total</th>
+          <th>Código</th>
+          <th>Descripción</th>
+          <th>Cant.</th>
+          <th>Precio Unit.</th>
+          <th>Total</th>
           <th></th>
         </tr>
       </thead>
-      <tbody id="cuerpoItems"></tbody>
+      <tbody id="cuerpoRepuestos"></tbody>
     </table>
-
+    </div>
     <button class="btn-add" onclick="agregarFila('Repuesto')" style="background-color:#4CAF50;">+ Repuesto</button>
-    <button class="btn-add" onclick="agregarFila('Mano de Obra')" style="background-color:#2196F3;">+ Mano de
-      Obra</button>
-    <button class="btn-add" onclick="agregarFila('MO Terceros')" style="background-color:#9C27B0;">+ MO
-      Terceros</button>
+
+    <!-- MANO DE OBRA -->
+    <h4 style="margin:18px 0 6px 0; color:#2196F3; font-size:15px; border-left:4px solid #2196F3; padding-left:8px;">Mano de Obra</h4>
+    <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+    <table class="item-table" id="tablaManoObra">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Descripción</th>
+          <th>Cant.</th>
+          <th>Precio Unit.</th>
+          <th>Total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="cuerpoManoObra"></tbody>
+    </table>
+    </div>
+    <button class="btn-add" onclick="agregarFila('Mano de Obra')" style="background-color:#2196F3;">+ Mano de Obra</button>
+
+    <!-- MO TERCEROS -->
+    <h4 style="margin:18px 0 6px 0; color:#9C27B0; font-size:15px; border-left:4px solid #9C27B0; padding-left:8px;">MO Terceros</h4>
+    <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+    <table class="item-table" id="tablaTerceros">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Descripción</th>
+          <th>Cant.</th>
+          <th>Precio Unit.</th>
+          <th>Total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="cuerpoTerceros"></tbody>
+    </table>
+    </div>
+    <button class="btn-add" onclick="agregarFila('MO Terceros')" style="background-color:#9C27B0;">+ MO Terceros</button>
 
     <div class="totales-box" style="margin-top:20px;">
       <div style="font-size:14px; color:#666;">Total Repuestos: $<span id="lblTotalRepuestos">0</span></div>
@@ -837,6 +1062,38 @@
       <div style="display:flex; gap:12px; justify-content:center; margin-top:20px;">
         <button id="btn-confirmar-si" class="modal-btn" style="background:#d32f2f; min-width:100px;">Sí, cerrar</button>
         <button id="btn-confirmar-no" class="modal-btn" style="background:#757575; min-width:100px;">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal cambiar contraseña -->
+  <div id="modal-password" class="pwd-modal-overlay">
+    <div class="pwd-modal-box">
+      <h3>🔒 Cambiar Contraseña</h3>
+      <form id="form-password" action="/api/change-password" method="POST" onsubmit="return cambiarPassword(event)">
+        <!-- Campo oculto requerido por Chrome para asociar la nueva contraseña al usuario -->
+        <input type="text" id="pwd-username" name="username" autocomplete="username" style="position:absolute;opacity:0;height:0;width:0;" tabindex="-1" readonly>
+        
+        <div class="form-group">
+          <label>Contraseña actual</label>
+          <input type="password" id="pwd-actual" name="current_password" autocomplete="current-password" required>
+        </div>
+        <div class="form-group">
+          <label>Nueva contraseña</label>
+          <div style="display:flex;gap:8px;">
+            <input type="password" id="pwd-nueva" name="new_password" autocomplete="new-password" required style="flex:1;">
+            <button type="button" onclick="generarPasswordSegura()" style="background:#f0f0f0;border:1px solid #ccc;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap;">🔑 Generar</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Confirmar nueva contraseña</label>
+          <input type="password" id="pwd-confirmar" name="confirm_password" autocomplete="new-password" required>
+        </div>
+      </form>
+      <p id="pwd-mensaje" class="pwd-msg"></p>
+      <div class="pwd-modal-actions">
+        <button type="submit" form="form-password" class="pwd-btn-guardar" id="pwd-btn-guardar">Guardar</button>
+        <button type="button" class="pwd-btn-cancelar" onclick="cerrarModalPassword()">Cancelar</button>
       </div>
     </div>
   </div>

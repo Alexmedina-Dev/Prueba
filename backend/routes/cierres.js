@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../db');
 const auth = require('../middleware/auth');
 const syncSheets = require('../utils/sync-sheets');
+const { encolarSync } = require('../utils/sheets-queue');
 
 // POST /api/cierres/generar
 router.post('/generar', auth, async (req, res) => {
@@ -54,7 +55,7 @@ router.post('/generar', auth, async (req, res) => {
     `, [idCierre, fecha, tecnico, servicios.length, totalFacturado]);
 
     // Sync Cierres Diarios a Google Sheets (ANTES de cierre_servicios para que siempre sincronice)
-    syncSheets({ 
+    encolarSync(syncSheets, {
       idCierre, 
       fecha, 
       tecnico, 

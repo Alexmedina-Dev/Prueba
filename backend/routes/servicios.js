@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../db');
 const auth = require('../middleware/auth');
 const syncSheets = require('../utils/sync-sheets');
+const { encolarSync } = require('../utils/sheets-queue');
 const { logError } = require('../utils/logger');
 
 // GET /api/servicios/abiertos
@@ -404,7 +405,7 @@ router.post('/guardar', auth, async (req, res) => {
       detalle: detalle_servicios
     };
 
-    syncSheets(datosSheets, estado);
+    encolarSync(syncSheets, datosSheets, estado);
 
     const responseId = idServicio || nuevoId;
     res.json({ ok: true, mensaje: 'Servicio guardado correctamente.', idServicio: responseId });
@@ -464,7 +465,7 @@ router.post('/cerrar-rapido', auth, async (req, res) => {
     await conn.commit();
 
     // Sync Google Sheets (fuera de transacción) — con datos completos
-    syncSheets({
+    encolarSync(syncSheets, {
       idServicio: srvData.idServicio,
       fecha: srvData.fecha,
       placa: srvData.placa,

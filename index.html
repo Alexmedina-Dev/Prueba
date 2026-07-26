@@ -74,11 +74,11 @@
             <h2 class="title">Inicia sesión</h2>
             <div class="title-divider"></div>
           </header>
-          <form autocomplete="off" id="loginForm">
+          <form id="loginForm">
             <div class="form-group">
               <div class="input-box">
                 <i class="fa-regular fa-envelope"></i>
-                <input id="email" placeholder="Correo electronico" required="" type="email" />
+                <input id="email" name="email" placeholder="Correo electronico" required="" type="email" autocomplete="username" />
               </div>
             </div>
             <div class="form-group">
@@ -86,9 +86,11 @@
                 <i class="fa-solid fa-lock"></i>
                 <input
                   id="password"
+                  name="password"
                   placeholder="Contrasena"
                   required=""
                   type="password"
+                  autocomplete="current-password"
                 />
                 <button class="toggle-password" id="togglePassword" type="button">
                   <i class="fa-regular fa-eye" id="eyeIcon"></i>
