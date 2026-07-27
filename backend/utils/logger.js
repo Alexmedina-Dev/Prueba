@@ -68,14 +68,17 @@ function analizarError(tipo, mensaje, ruta, stack) {
       texto.includes('404') ||
       texto.includes('400') ||
       texto.includes('validation') ||
-      texto.includes('required')) {
+      texto.includes('required') ||
+      mensaje.includes('401')) {
     return {
       severidad: 'MEDIUM',
       categoria: tipo === 'ERROR_SHEETS' ? 'GOOGLE_SHEETS' :
                  texto.includes('404') ? 'RUTA' :
+                 texto.includes('401') || ruta?.includes('admin') ? 'AUTENTICACION' :
                  texto.includes('validation') || texto.includes('required') ? 'VALIDACION' : 'CLIENTE',
       sugerencia: tipo === 'ERROR_SHEETS' ? 'Verificar credenciales de Google Cloud y permisos del Sheet' :
                   texto.includes('404') ? 'Verificar que la ruta exista en server.js' :
+                  texto.includes('401') ? 'Usuario no autenticado o token expirado. Requiere login.' :
                   texto.includes('validation') ? 'Revisar validaciones en frontend y backend' :
                   'Error del cliente. Verificar request y headers.'
     };
