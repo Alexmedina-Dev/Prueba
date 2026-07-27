@@ -63,7 +63,20 @@ router.get('/logs-stats', async (req, res, next) => {
        WHERE fecha >= NOW() - INTERVAL 7 DAY
        GROUP BY ruta ORDER BY total DESC LIMIT 10`
     );
-    res.json({ ultimas24h, topRutas7d });
+    // Errores que requieren revisión humana (CRITICAL/HIGH sin auto_fix en 24h)
+    const [pendientesRevision] = await pool.query(
+      `SELECT COUNT(*) as total FROM logs_errores
+       WHERE fecha >= NOW() - INTERVAL 1 DAY
+       AND severidad IN ('CRITICAL', 'HIGH')
+       AND (auto_fix IS NULL OR auto_fix = '')`
+    );
+    // Errores que se auto-resolvieron en 24h
+    const [autoResueltos] = await pool.query(
+      `SELECT COUNT(*) as total FROM logs_errores
+       WHERE fecha >= NOW() - INTERVAL 1 DAY
+       AND auto_fix IS NOT NULL AND auto_fix != ''`
+    );
+    res.json({ ultimas24h, topRutas7d, pendientesRevision: pendientesRevision[0].total, autoResueltos: autoResueltos[0].total });
   } catch (e) { next(e); }
 });
 

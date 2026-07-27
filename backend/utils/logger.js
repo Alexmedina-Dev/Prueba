@@ -19,7 +19,12 @@ const LOG_FILE = path.join(LOGS_DIR, 'errores.log');
  * Analiza un error y determina su severidad, categoría y sugerencia
  */
 function analizarError(tipo, mensaje, ruta, stack) {
-  const texto = `${tipo} ${mensaje} ${ruta || ''} ${stack || ''}`.toLowerCase();
+  // Null-safety: asegurar que mensaje no sea null/undefined
+  const safeMensaje = mensaje || '';
+  const safeTipo = tipo || 'ERROR';
+  const safeRuta = ruta || '';
+  const safeStack = stack || '';
+  const texto = `${safeTipo} ${safeMensaje} ${safeRuta} ${safeStack}`.toLowerCase();
   
   // CRÍTICO: Errores que detienen la app o comprometen seguridad
   if (texto.includes('cannot connect') || 
@@ -209,20 +214,10 @@ async function autoFixError(analisis, mensaje, ruta) {
     }
   }
   
-  // 2. Google Sheets quota exceeded → Retrasar y reintentar
+  // 2. Google Sheets quota exceeded → No se puede auto-fixar, requiere esperar
   if (texto.includes('quota') || texto.includes('rate limit')) {
-    console.log('🤖 Auto-fix: Sheets quota exceeded. Reintentando en 60s...');
-    setTimeout(() => {
-      // Emitir evento para reintentar sync
-      const { logError } = require('./logger');
-      logError({
-        tipo: 'INFO',
-        ruta: ruta,
-        mensaje: 'Reintento automático de Sheets después de quota exceeded',
-        usuario: 'system'
-      });
-    }, 60000);
-    return { fixed: true, action: 'Reintento programado en 60 segundos' };
+    console.log('🤖 Auto-fix: Sheets quota exceeded. No se puede auto-reparar. Requiere esperar 60-120s.');
+    return { fixed: false, action: 'Quota de Google Sheets excedido. sheets-queue.js ya reintentará automáticamente. No requiere acción manual.' };
   }
   
   // 3. 401 en polling de servicios → No es bug, es auth expirado
@@ -231,10 +226,10 @@ async function autoFixError(analisis, mensaje, ruta) {
     return { fixed: true, action: 'Polling ignorado - usuario sin sesión' };
   }
   
-  // 4. Timeout de consulta → Reintentar con timeout mayor
+  // 4. Timeout de consulta → No se puede auto-fixar, requiere optimización
   if (texto.includes('timeout') && !texto.includes('connect')) {
-    console.log('🤖 Auto-fix: Query timeout. Próxima consulta usará timeout extendido.');
-    return { fixed: true, action: 'Timeout detectado - próxima consulta con timeout extendido' };
+    console.log('🤖 Auto-fix: Query timeout. No se puede auto-reparar. Requiere optimización.');
+    return { fixed: false, action: 'Query muy lenta. Requiere optimizar índices o paginar resultados.' };
   }
   
   return { fixed: false, action: 'Requiere intervención manual' };

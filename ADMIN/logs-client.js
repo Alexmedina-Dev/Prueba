@@ -34,12 +34,25 @@ async function cargarStats() {
   const data = await res.json();
   const cont = document.getElementById('stats');
   cont.innerHTML = '';
+  
+  // Tarjeta principal: errores que requieren revisión
+  const pendientes = data.pendientesRevision || 0;
+  if (pendientes > 0) {
+    cont.innerHTML += `<div class="stat-card stat-review" style="background:#4a1a1a;border:1px solid #ff6b6b;"><div class="num" style="color:#ff6b6b;">${pendientes}</div><div class="label" style="color:#ff6b6b;">🔴 Requieren tu revisión</div></div>`;
+  } else {
+    cont.innerHTML += `<div class="stat-card stat-ok" style="background:#1a4a1a;border:1px solid #4caf50;"><div class="num" style="color:#4caf50;">✅</div><div class="label" style="color:#4caf50;">Todo OK - nada que revisar</div></div>`;
+  }
+  
+  // Tarjeta de auto-resueltos
+  const autoFixed = data.autoResueltos || 0;
+  if (autoFixed > 0) {
+    cont.innerHTML += `<div class="stat-card"><div class="num" style="color:#4caf50;">${autoFixed}</div><div class="label">🤖 Auto-resueltos (24h)</div></div>`;
+  }
+  
+  // Resto de stats
   data.ultimas24h.forEach(s => {
     cont.innerHTML += `<div class="stat-card"><div class="num">${s.total}</div><div class="label">${s.tipo} (24h)</div></div>`;
   });
-  if (data.ultimas24h.length === 0) {
-    cont.innerHTML = '<div class="stat-card"><div class="num">0</div><div class="label">Sin errores en 24h 🎉</div></div>';
-  }
 }
 
 async function cargarLogs(pagina) {
@@ -100,6 +113,15 @@ async function verDetalle(id) {
     `Severidad: ${log.severidad || 'LOW'} | Categoría: ${log.categoria || 'GENERAL'}`;
   
   document.getElementById('modalMensaje').textContent = log.mensaje || '(sin mensaje)';
+  
+  // Auto-fix status
+  if (log.auto_fix) {
+    document.getElementById('modalAutofix').style.display = 'block';
+    document.getElementById('modalAutofix').innerHTML = 
+      `<span style="color:#4caf50;">✅ Auto-resuelto:</span> ${log.auto_fix}`;
+  } else {
+    document.getElementById('modalAutofix').style.display = 'none';
+  }
   
   // Sugerencia automática
   document.getElementById('modalSugerencia').textContent = 
