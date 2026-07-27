@@ -10,7 +10,7 @@ function authHeaders() {
 
 function badgeClass(tipo) {
   if (tipo === 'ERROR_SERVER') return 'badge-server';
-  if (tipo === 'ERROR_CLIENT') return 'badge-client';
+  if (tipo === 'ERROR_CLIENT' || tipo === 'ERROR_CLIENT_DETAIL') return 'badge-client';
   if (tipo === 'ERROR_UNHANDLED') return 'badge-unhandled';
   return 'badge-fatal';
 }
