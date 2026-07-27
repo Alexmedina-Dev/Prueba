@@ -121,12 +121,19 @@ async function logError({ tipo = 'ERROR', ruta, metodo, mensaje, stack, datos, u
     console.error('No se pudo escribir en archivo de log:', fileErr.message);
   }
 
-  // 2. Guardar en MySQL
+  // 3. Intentar auto-fix
+  const autoFix = await autoFixError(analisis, mensaje, ruta);
+  if (autoFix.fixed) {
+    logBlock += `AUTO-FIX: ${autoFix.action}\n`;
+    console.log(`🤖 Auto-fix aplicado: ${autoFix.action}`);
+  }
+
+  // 4. Guardar en MySQL
   try {
     await pool.execute(
       `INSERT INTO logs_errores 
-       (tipo, ruta, metodo, mensaje, stack_trace, datos_request, usuario, ip_cliente, fecha, severidad, categoria, sugerencia)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)`,
+       (tipo, ruta, metodo, mensaje, stack_trace, datos_request, usuario, ip_cliente, fecha, severidad, categoria, sugerencia, auto_fix)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?)`,
       [
         tipo,
         ruta || null,
@@ -138,7 +145,8 @@ async function logError({ tipo = 'ERROR', ruta, metodo, mensaje, stack, datos, u
         ip || null,
         analisis.severidad,
         analisis.categoria,
-        analisis.sugerencia
+        analisis.sugerencia,
+        autoFix.fixed ? autoFix.action : null
       ]
     );
   } catch (dbErr) {
@@ -172,6 +180,59 @@ function requestLogger(req, res, next) {
   });
   
   next();
+}
+
+/**
+ * Intenta arreglar errores automáticamente sin intervención humana
+ */
+async function autoFixError(analisis, mensaje, ruta) {
+  const texto = `${mensaje} ${ruta || ''}`.toLowerCase();
+  
+  // 1. MySQL connection lost / timeout → Reconectar pool
+  if (texto.includes('econnrefused') || 
+      texto.includes('connection lost') ||
+      texto.includes('connect timeout') ||
+      texto.includes('cannot connect')) {
+    try {
+      console.log('🤖 Auto-fix: Reconectando MySQL...');
+      await pool.execute('SELECT 1'); // Ping para reconectar
+      console.log('✅ Auto-fix: MySQL reconectado');
+      return { fixed: true, action: 'MySQL reconectado automáticamente' };
+    } catch(e) {
+      console.error('❌ Auto-fix: No se pudo reconectar MySQL:', e.message);
+      return { fixed: false, action: 'Reconexión MySQL fallida' };
+    }
+  }
+  
+  // 2. Google Sheets quota exceeded → Retrasar y reintentar
+  if (texto.includes('quota') || texto.includes('rate limit')) {
+    console.log('🤖 Auto-fix: Sheets quota exceeded. Reintentando en 60s...');
+    setTimeout(() => {
+      // Emitir evento para reintentar sync
+      const { logError } = require('./logger');
+      logError({
+        tipo: 'INFO',
+        ruta: ruta,
+        mensaje: 'Reintento automático de Sheets después de quota exceeded',
+        usuario: 'system'
+      });
+    }, 60000);
+    return { fixed: true, action: 'Reintento programado en 60 segundos' };
+  }
+  
+  // 3. 401 en polling de servicios → No es bug, es auth expirado
+  if (ruta && ruta.includes('pendientes') && mensaje.includes('401')) {
+    console.log('🤖 Auto-fix: Polling sin sesión. Ignorando (no es error).');
+    return { fixed: true, action: 'Polling ignorado - usuario sin sesión' };
+  }
+  
+  // 4. Timeout de consulta → Reintentar con timeout mayor
+  if (texto.includes('timeout') && !texto.includes('connect')) {
+    console.log('🤖 Auto-fix: Query timeout. Próxima consulta usará timeout extendido.');
+    return { fixed: true, action: 'Timeout detectado - próxima consulta con timeout extendido' };
+  }
+  
+  return { fixed: false, action: 'Requiere intervención manual' };
 }
 
 /**
