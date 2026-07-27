@@ -6,10 +6,10 @@ const adminOnly = require('../middleware/adminOnly');
 
 router.use(authMiddleware, adminOnly);
 
-// GET /api/admin/logs?tipo=&ruta=&page=1&limit=50
+// GET /api/admin/logs?tipo=&ruta=&page=1&limit=50&ocultar_autofix=true
 router.get('/logs', async (req, res, next) => {
   try {
-    const { tipo, ruta, page = 1, limit = 50 } = req.query;
+    const { tipo, ruta, page = 1, limit = 50, ocultar_autofix } = req.query;
     const lim = Math.min(200, parseInt(limit) || 50);
     const offset = (Math.max(1, parseInt(page)) - 1) * lim;
 
@@ -17,10 +17,11 @@ router.get('/logs', async (req, res, next) => {
     const params = [];
     if (tipo) { where.push('tipo = ?'); params.push(tipo); }
     if (ruta) { where.push('ruta LIKE ?'); params.push(`%${ruta}%`); }
+    if (ocultar_autofix === 'true') { where.push('(auto_fix IS NULL OR auto_fix = "")'); }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
     const [rows] = await pool.query(
-      `SELECT id, tipo, ruta, metodo, mensaje, usuario, ip_cliente, fecha, severidad, categoria
+      `SELECT id, tipo, ruta, metodo, mensaje, usuario, ip_cliente, fecha, severidad, categoria, auto_fix
        FROM logs_errores ${whereSql}
        ORDER BY 
          CASE severidad 

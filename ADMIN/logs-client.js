@@ -59,9 +59,11 @@ async function cargarLogs(pagina) {
   paginaActual = pagina;
   const tipo = document.getElementById('filtroTipo').value;
   const ruta = document.getElementById('filtroRuta').value;
+  const ocultarAutofix = document.getElementById('ocultarAutofix').checked;
   const params = new URLSearchParams({ page: pagina, limit: 30 });
   if (tipo) params.append('tipo', tipo);
   if (ruta) params.append('ruta', ruta);
+  if (ocultarAutofix) params.append('ocultar_autofix', 'true');
 
   const res = await fetch(`${API_BASE}/api/admin/logs?${params}`, { headers: authHeaders() });
   if (res.status === 401 || res.status === 403) {

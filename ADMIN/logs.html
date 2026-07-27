@@ -72,6 +72,9 @@
       <option value="UNHANDLED_REJECTION">UNHANDLED_REJECTION</option>
     </select>
     <input type="text" id="filtroRuta" placeholder="Filtrar por ruta (ej: servicios)">
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#8a8f99;">
+      <input type="checkbox" id="ocultarAutofix" checked> Ocultar auto-resueltos
+    </label>
     <button onclick="cargarLogs(1)">Filtrar</button>
     <button onclick="autoRefresh()">🔄 Auto-refrescar: <span id="refreshState">OFF</span></button>
   </div>
