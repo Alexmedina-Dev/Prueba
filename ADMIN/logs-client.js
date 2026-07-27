@@ -98,6 +98,16 @@ function cerrarModal() {
   document.getElementById('modal').classList.remove('open');
 }
 
+// Cerrar modal con Escape
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') cerrarModal();
+});
+
+// Cerrar modal al hacer clic fuera
+window.addEventListener('click', (e) => {
+  if (e.target.id === 'modal') cerrarModal();
+});
+
 function cambiarPagina(delta) {
   const nueva = paginaActual + delta;
   if (nueva >= 1) cargarLogs(nueva);

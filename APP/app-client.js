@@ -29,6 +29,12 @@ function mostrarSaludoUsuario() {
     if (greetingEl) {
       greetingEl.innerHTML = `👋 Hola, <strong>${nombre}</strong> <span class="role-badge ${roleInfo.class}">${roleInfo.label}</span>`;
     }
+    
+    // Mostrar botón de panel de errores solo para developer (Alex)
+    const btnDev = document.getElementById('btn-dev-panel');
+    if (btnDev) {
+      btnDev.style.display = role === 'developer' ? 'block' : 'none';
+    }
   } catch(e) {
     console.error('Error mostrando saludo:', e);
   }

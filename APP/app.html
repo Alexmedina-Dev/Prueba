@@ -110,6 +110,24 @@
       background: rgba(255, 255, 255, 0.25);
     }
 
+    .btn-dev-only {
+      display: block;
+      margin: 6px auto 0;
+      background: #ff9800;
+      color: #ffffff;
+      border: none;
+      padding: 4px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .btn-dev-only:hover {
+      background: #f57c00;
+    }
+
     .pendientes-wrap {
       position: absolute;
       top: 0;
@@ -882,6 +900,7 @@
     <div class="user-greeting" id="userGreeting"></div>
     <button class="btn-change-password" onclick="mostrarModalPassword()">🔒 Cambiar Contraseña</button>
     <button class="btn-logout" onclick="cerrarSesion()">Cerrar Sesión</button>
+    <button class="btn-dev-only" id="btn-dev-panel" onclick="window.open('/ADMIN/logs.html', '_blank')" style="display:none;">🔧 Panel Errores</button>
     <div class="pendientes-wrap">
       <button class="btn-pendientes" onclick="togglePendientes(event)">
         ⚠️ Pendientes <span id="pendientes-badge" class="badge" style="display:none;">0</span>
