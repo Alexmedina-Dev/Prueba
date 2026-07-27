@@ -38,18 +38,12 @@ function mostrarSaludoUsuario() {
 document.addEventListener('DOMContentLoaded', () => {
   mostrarSaludoUsuario();
   
-  // Si viene del login con contraseña genérica, forzar cambio
+  // Si viene del login con contraseña genérica, abrir modal de cambio
   const params = new URLSearchParams(window.location.search);
   if (params.get('force_password_change') === 'true') {
-    // Esperar un momento para que cargue la UI
     setTimeout(() => {
       mostrarModalPassword();
-      // Mostrar mensaje informativo
-      const msgEl = document.getElementById('pwd-mensaje');
-      if (msgEl) {
-        msgEl.innerText = '⚠️ Tu contraseña es genérica. Debes crear una nueva contraseña segura para continuar.';
-        msgEl.className = 'pwd-msg warning';
-      }
+      // Chrome detectará el campo autocomplete="new-password" y sugerirá contraseña segura
     }, 500);
   }
 });
@@ -230,6 +224,12 @@ async function cambiarPassword(e) {
     msgEl.className = 'pwd-msg success';
     msgEl.innerText = data.mensaje || 'Contraseña actualizada correctamente';
 
+    // Vaciar campos DE INMEDIATO tras el 200 OK — esto es lo que Chrome
+    // correlaciona con el submit exitoso para ofrecer actualizar la clave guardada
+    document.getElementById('pwd-actual').value = '';
+    document.getElementById('pwd-nueva').value = '';
+    document.getElementById('pwd-confirmar').value = '';
+
     // Actualizar flag en localStorage
     try {
       const u = JSON.parse(localStorage.getItem('user') || '{}');
@@ -238,7 +238,7 @@ async function cambiarPassword(e) {
     } catch(e) {}
 
     setTimeout(() => {
-      // Limpiar URL param y cerrar modal
+      // Limpiar URL param y cerrar modal visualmente
       window.history.replaceState({}, document.title, window.location.pathname);
       cerrarModalPassword();
     }, 1500);
