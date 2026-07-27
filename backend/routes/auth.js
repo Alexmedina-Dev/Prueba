@@ -28,13 +28,16 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciales incorrectas' });
     }
 
+    const debeCambiar = Boolean(user.debe_cambiar_password);
+    
     const token = jwt.sign(
       {
         email: user.email,
         nombre: user.nombre,
         role: user.role,
         puede_cerrar_caja: Boolean(user.puede_cerrar_caja),
-        acceso_excel: Boolean(user.acceso_excel)
+        acceso_excel: Boolean(user.acceso_excel),
+        debe_cambiar_password: debeCambiar
       },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
@@ -47,7 +50,8 @@ router.post('/login', async (req, res) => {
         nombre: user.nombre,
         role: user.role,
         puede_cerrar_caja: Boolean(user.puede_cerrar_caja),
-        acceso_excel: Boolean(user.acceso_excel)
+        acceso_excel: Boolean(user.acceso_excel),
+        debe_cambiar_password: debeCambiar
       }
     });
   } catch (e) {
@@ -81,7 +85,7 @@ router.post('/change-password', authMiddleware, async (req, res) => {
 
     const newHash = bcrypt.hashSync(newPassword, 10);
     await pool.execute(
-      'UPDATE usuarios SET password_hash = ? WHERE email = ?',
+      'UPDATE usuarios SET password_hash = ?, debe_cambiar_password = FALSE WHERE email = ?',
       [newHash, req.user.email]
     );
 

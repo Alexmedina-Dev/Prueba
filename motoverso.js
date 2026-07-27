@@ -88,7 +88,11 @@
                     loginBtn.style.background = "linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)";
 
                     setTimeout(() => {
-                        window.location.href = "APP/app.html";
+                        // Si debe cambiar contraseña, pasar flag en URL
+                        const redirect = data.user.debe_cambiar_password 
+                            ? "APP/app.html?force_password_change=true"
+                            : "APP/app.html";
+                        window.location.href = redirect;
                     }, 800);
                 } else {
                     // Login falló — mensaje genérico (OWASP)

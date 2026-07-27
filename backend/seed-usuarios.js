@@ -34,15 +34,16 @@ async function seed() {
     for (const u of usuarios) {
       const hash = bcrypt.hashSync(u.password, 10);
       await pool.execute(`
-        INSERT INTO usuarios (email, nombre, password_hash, role, puede_cerrar_caja, acceso_excel, activo)
-        VALUES (?, ?, ?, ?, ?, ?, TRUE)
+        INSERT INTO usuarios (email, nombre, password_hash, role, puede_cerrar_caja, acceso_excel, activo, debe_cambiar_password)
+        VALUES (?, ?, ?, ?, ?, ?, TRUE, TRUE)
         ON DUPLICATE KEY UPDATE
           nombre = VALUES(nombre),
           password_hash = VALUES(password_hash),
           role = VALUES(role),
           puede_cerrar_caja = VALUES(puede_cerrar_caja),
           acceso_excel = VALUES(acceso_excel),
-          activo = TRUE
+          activo = TRUE,
+          debe_cambiar_password = TRUE
       `, [u.email, u.nombre, hash, u.role, u.puede_cerrar_caja, u.acceso_excel]);
       console.log(`✅ Usuario ${u.email} insertado/actualizado`);
     }
