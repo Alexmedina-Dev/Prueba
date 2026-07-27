@@ -131,4 +131,31 @@ router.post('/auth/register', authMiddleware, adminOnly, async (req, res) => {
   }
 });
 
+// POST /api/log-client-error — recibir errores del frontend con stack trace completo
+router.post('/log-client-error', async (req, res) => {
+  const { mensaje, stack, archivo, linea, funcion, contexto, url, userAgent } = req.body;
+  
+  try {
+    await pool.execute(
+      `INSERT INTO logs_errores 
+       (tipo, ruta, metodo, mensaje, stack_trace, datos_request, usuario, ip_cliente, fecha)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [
+        'ERROR_CLIENT_DETAIL',
+        url || 'frontend',
+        'CLIENT',
+        mensaje ? mensaje.substring(0, 1000) : null,
+        JSON.stringify({ stack, archivo, linea, funcion, contexto }).substring(0, 2000),
+        JSON.stringify({ userAgent, url }).substring(0, 1000),
+        'frontend',
+        req.ip || req.connection.remoteAddress
+      ]
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('Error guardando log cliente:', e.message);
+    res.status(500).json({ error: 'No se pudo guardar el log' });
+  }
+});
+
 module.exports = router;

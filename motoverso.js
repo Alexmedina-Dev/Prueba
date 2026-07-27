@@ -31,6 +31,41 @@
         if (yearEl) yearEl.textContent = new Date().getFullYear();
 
         /*=========================================
+          CLIENT ERROR LOGGING
+        =========================================*/
+        async function logClientError(error, contexto = '') {
+          try {
+            const stack = error.stack || '';
+            const lines = stack.split('\n');
+            const match = lines[1] ? lines[1].match(/at\s+(.*?)\s+\((.*?):(\d+):(\d+)\)/) : null;
+            const funcion = match ? match[1] : 'anonymous';
+            const archivo = match ? match[2].replace(window.location.origin, '') : 'unknown';
+            const linea = match ? match[3] : '0';
+            
+            await fetch(window.location.origin + '/api/log-client-error', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                mensaje: error.message,
+                stack: stack,
+                archivo: archivo,
+                linea: linea,
+                funcion: funcion,
+                contexto: contexto,
+                url: window.location.href,
+                userAgent: navigator.userAgent
+              })
+            });
+          } catch(e) {
+            console.error('No se pudo enviar log:', e);
+          }
+        }
+        
+        window.addEventListener('error', (e) => {
+          logClientError(e.error || new Error(e.message), 'Error global en login page');
+        });
+
+        /*=========================================
           FORM & PASSWORD LOGIC
         =========================================*/
         const togglePassword = document.getElementById("togglePassword");
@@ -99,8 +134,11 @@
                     throw new Error(data.error || 'Credenciales incorrectas');
                 }
             } catch (err) {
+                // Enviar error detallado al backend para monitoreo
+                logClientError(err, `Login fallido para ${email} — HTTP ${response ? response.status : 'network'}`);
+                
                 btnText.textContent = "ERROR";
-                loginBtn.style.background = "linear-gradient(135deg, #c0392b 0%, #922b21 100%)";
+                loginBtn.style.background = "linear-gradient(135deg: #c0392b 0%, #922b21 100%)";
                 errorMsg.classList.add("visible");
 
                 setTimeout(() => {

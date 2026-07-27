@@ -57,6 +57,48 @@ function getAuthHeaders(contentType = true) {
   return headers;
 }
 
+/**
+ * Envía un error del frontend al backend con stack trace completo
+ * para poder ver exactamente qué archivo, función y línea falló
+ */
+async function logClientError(error, contexto = '') {
+  try {
+    const stack = error.stack || '';
+    const lines = stack.split('\n');
+    const match = lines[1] ? lines[1].match(/at\s+(.*?)\s+\((.*?):(\d+):(\d+)\)/) : null;
+    
+    const funcion = match ? match[1] : 'anonymous';
+    const archivo = match ? match[2].replace(window.location.origin, '') : 'unknown';
+    const linea = match ? match[3] : '0';
+    
+    await fetch(`${API_BASE}/api/log-client-error`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mensaje: error.message,
+        stack: stack,
+        archivo: archivo,
+        linea: linea,
+        funcion: funcion,
+        contexto: contexto,
+        url: window.location.href,
+        userAgent: navigator.userAgent
+      })
+    });
+  } catch(e) {
+    console.error('No se pudo enviar log de error:', e);
+  }
+}
+
+// Capturar errores globales del frontend
+window.addEventListener('error', (e) => {
+  logClientError(e.error || new Error(e.message), 'Error global no capturado');
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+  logClientError(e.reason instanceof Error ? e.reason : new Error(String(e.reason)), 'Promesa rechazada no manejada');
+});
+
 // Modal de validación profesional
 function mostrarModal(titulo, mensaje, tipo = 'error') {
   const tituloEl = document.getElementById('modal-titulo');

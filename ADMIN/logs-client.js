@@ -76,7 +76,20 @@ async function verDetalle(id) {
   document.getElementById('modalMeta').textContent =
     `${new Date(log.fecha).toLocaleString('es-CO')} | ${log.metodo || '-'} | Usuario: ${log.usuario || 'anonimo'} | IP: ${log.ip_cliente || '-'}`;
   document.getElementById('modalMensaje').textContent = log.mensaje || '(sin mensaje)';
-  document.getElementById('modalStack').textContent = log.stack_trace || '(sin stack trace)';
+  
+  // Parsear stack trace si es error del frontend con detalles estructurados
+  let stackHtml = '';
+  if (log.stack_trace && log.tipo === 'ERROR_CLIENT_DETAIL') {
+    try {
+      const parsed = JSON.parse(log.stack_trace);
+      stackHtml = `📁 Archivo: ${parsed.archivo || 'N/A'}\n🔧 Función: ${parsed.funcion || 'N/A'}\n📍 Línea: ${parsed.linea || 'N/A'}\n📝 Contexto: ${parsed.contexto || 'N/A'}\n\n--- Stack trace completo ---\n${parsed.stack || log.stack_trace}`;
+    } catch(e) {
+      stackHtml = log.stack_trace;
+    }
+  } else {
+    stackHtml = log.stack_trace || '(sin stack trace)';
+  }
+  document.getElementById('modalStack').textContent = stackHtml;
   document.getElementById('modalDatos').textContent = log.datos_request || '(sin datos)';
   document.getElementById('modal').classList.add('open');
 }
