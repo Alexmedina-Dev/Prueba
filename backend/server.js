@@ -8,9 +8,16 @@ const { requestLogger, errorHandler, crearTablaLogs, logError } = require('./uti
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
 
-app.use(cors());
+// CORS: en producción solo permitir el dominio real, en desarrollo todo
+const isProduction = process.env.NODE_ENV === 'production';
+const allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://localhost:3000';
+const corsOptions = isProduction 
+  ? { origin: [allowedOrigin, 'https://' + allowedOrigin.replace(/^https?:\/\//, '')] }
+  : { origin: '*' };
+
+const io = new Server(server, { cors: corsOptions });
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(requestLogger);
 
@@ -109,6 +116,11 @@ app.use('/api', require('./routes/auth'));
 app.use('/api/servicios', require('./routes/servicios'));
 app.use('/api/cierres', require('./routes/cierres'));
 app.use('/api/admin', require('./routes/admin'));
+
+// ── .well-known para Chrome Password Manager ────────────────
+app.get('/.well-known/change-password', (req, res) => {
+  res.redirect('/index.html');
+});
 
 // ── SPA fallback ────────────────────────────────────────────
 app.get('*', (req, res) => {
