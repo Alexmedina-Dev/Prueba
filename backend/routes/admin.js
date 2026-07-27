@@ -20,9 +20,17 @@ router.get('/logs', async (req, res, next) => {
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
     const [rows] = await pool.query(
-      `SELECT id, tipo, ruta, metodo, mensaje, usuario, ip_cliente, fecha
+      `SELECT id, tipo, ruta, metodo, mensaje, usuario, ip_cliente, fecha, severidad, categoria
        FROM logs_errores ${whereSql}
-       ORDER BY fecha DESC LIMIT ? OFFSET ?`,
+       ORDER BY 
+         CASE severidad 
+           WHEN 'CRITICAL' THEN 1 
+           WHEN 'HIGH' THEN 2 
+           WHEN 'MEDIUM' THEN 3 
+           ELSE 4 
+         END, 
+         fecha DESC 
+       LIMIT ? OFFSET ?`,
       [...params, lim, offset]
     );
 

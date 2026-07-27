@@ -21,6 +21,13 @@ function badgeClass(tipo) {
   return 'badge-fatal';
 }
 
+function severityBadge(severidad) {
+  if (severidad === 'CRITICAL') return '<span class="badge badge-critical">🔴 CRÍTICO</span>';
+  if (severidad === 'HIGH') return '<span class="badge badge-high">🟠 ALTO</span>';
+  if (severidad === 'MEDIUM') return '<span class="badge badge-medium">🟡 MEDIO</span>';
+  return '<span class="badge badge-low">🟢 BAJO</span>';
+}
+
 async function cargarStats() {
   const res = await fetch(`${API_BASE}/api/admin/logs-stats`, { headers: authHeaders() });
   if (!res.ok) return;
@@ -60,12 +67,12 @@ async function cargarLogs(pagina) {
     data.data.forEach(log => {
       const fecha = new Date(log.fecha).toLocaleString('es-CO');
       tbody.innerHTML += `
-        <tr onclick="verDetalle(${log.id})">
+        <tr onclick="verDetalle(${log.id})" class="severity-${(log.severidad || 'LOW').toLowerCase()}">
           <td>${fecha}</td>
+          <td>${severityBadge(log.severidad)}</td>
           <td><span class="badge ${badgeClass(log.tipo)}">${log.tipo}</span></td>
           <td>${log.ruta || '-'}</td>
-          <td>${log.metodo || '-'}</td>
-          <td>${(log.mensaje || '').substring(0, 80)}</td>
+          <td>${(log.mensaje || '').substring(0, 60)}</td>
           <td>${log.usuario || 'anonimo'}</td>
         </tr>`;
     });
@@ -78,10 +85,25 @@ async function cargarLogs(pagina) {
 async function verDetalle(id) {
   const res = await fetch(`${API_BASE}/api/admin/logs/${id}`, { headers: authHeaders() });
   const log = await res.json();
-  document.getElementById('modalTitulo').textContent = `${log.tipo} — ${log.ruta || 'sin ruta'}`;
+  
+  // Título con severidad
+  const severidadEmoji = log.severidad === 'CRITICAL' ? '🔴' : 
+                         log.severidad === 'HIGH' ? '🟠' : 
+                         log.severidad === 'MEDIUM' ? '🟡' : '🟢';
+  document.getElementById('modalTitulo').textContent = `${severidadEmoji} ${log.tipo} — ${log.ruta || 'sin ruta'}`;
+  
   document.getElementById('modalMeta').textContent =
     `${new Date(log.fecha).toLocaleString('es-CO')} | ${log.metodo || '-'} | Usuario: ${log.usuario || 'anonimo'} | IP: ${log.ip_cliente || '-'}`;
+  
+  // Severidad y categoría
+  document.getElementById('modalSeveridad').textContent = 
+    `Severidad: ${log.severidad || 'LOW'} | Categoría: ${log.categoria || 'GENERAL'}`;
+  
   document.getElementById('modalMensaje').textContent = log.mensaje || '(sin mensaje)';
+  
+  // Sugerencia automática
+  document.getElementById('modalSugerencia').textContent = 
+    log.sugerencia || 'Monitorear. Si persiste, revisar logs detallados.';
   
   // Parsear stack trace si es error del frontend con detalles estructurados
   let stackHtml = '';

@@ -30,6 +30,18 @@
   .badge-client { background: #4a3a1a; color: #ffb86b; }
   .badge-unhandled { background: #3a1a4a; color: #c96bff; }
   .badge-fatal { background: #6b0000; color: #fff; }
+  
+  /* Severidad */
+  .badge-critical { background: #6b0000; color: #fff; }
+  .badge-high { background: #8b4513; color: #ffb86b; }
+  .badge-medium { background: #4a4a1a; color: #ffd700; }
+  .badge-low { background: #1a4a1a; color: #4caf50; }
+  
+  /* Filas por severidad */
+  .severity-critical { border-left: 4px solid #ff0000; }
+  .severity-high { border-left: 4px solid #ff8c00; }
+  .severity-medium { border-left: 4px solid #ffd700; }
+  .severity-low { border-left: 4px solid #4caf50; }
   .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); align-items: center; justify-content: center; z-index: 10; }
   .modal.open { display: flex; }
   .modal-box { background: #1a1d24; border-radius: 10px; padding: 20px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto; }
@@ -66,7 +78,7 @@
 
   <table>
     <thead>
-      <tr><th>Fecha</th><th>Tipo</th><th>Ruta</th><th>Método</th><th>Mensaje</th><th>Usuario</th></tr>
+      <tr><th>Fecha</th><th>Severidad</th><th>Tipo</th><th>Ruta</th><th>Mensaje</th><th>Usuario</th></tr>
     </thead>
     <tbody id="tablaLogs"></tbody>
   </table>
@@ -82,6 +94,13 @@
     <div class="modal-box">
       <h3 id="modalTitulo"></h3>
       <p id="modalMeta" style="color:#8a8f99;font-size:13px;margin:8px 0"></p>
+      <p id="modalSeveridad" style="color:#ffb86b;font-weight:600;margin:8px 0"></p>
+      
+      <div class="sugerencia-box" style="background:#1a3a1a;border-left:3px solid #4caf50;padding:12px;margin:12px 0;border-radius:6px;">
+        <p style="color:#4caf50;font-weight:600;margin:0 0 4px 0">💡 Sugerencia de solución:</p>
+        <pre id="modalSugerencia" style="margin:0;color:#e4e6eb;background:transparent;padding:0;"></pre>
+      </div>
+      
       <p><strong>Mensaje:</strong></p>
       <pre id="modalMensaje"></pre>
       <p><strong>Stack trace:</strong></p>
