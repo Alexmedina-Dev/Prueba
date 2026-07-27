@@ -105,8 +105,9 @@
             loginBtn.disabled = true;
             btnText.textContent = "VERIFICANDO...";
 
+            let response = null;
             try {
-                const response = await fetch(window.location.origin + '/api/login', {
+                response = await fetch(window.location.origin + '/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
@@ -134,23 +135,25 @@
                     throw new Error(data.error || 'Credenciales incorrectas');
                 }
             } catch (err) {
-                // Enviar error detallado al backend para monitoreo
-                logClientError(err, `Login fallido para ${email} — HTTP ${response ? response.status : 'network'}`);
+                // Loguear error solo si no es 401 (contraseña incorrecta es normal)
+                if (response && response.status !== 401) {
+                    logClientError(err, `Login fallido para ${email} — HTTP ${response.status}`);
+                }
                 
                 btnText.textContent = "ERROR";
-                loginBtn.style.background = "linear-gradient(135deg: #c0392b 0%, #922b21 100%)";
+                loginBtn.style.background = "linear-gradient(135deg, #c0392b 0%, #922b21 100%)";
                 errorMsg.classList.add("visible");
 
+                // SIEMPRE resetear botón, incluso si hay error
                 setTimeout(() => {
                     btnText.textContent = "INICIAR SESION";
                     loginBtn.style.background = "";
                     loginBtn.disabled = false;
                     errorMsg.classList.remove("visible");
 
-                    // Limpiar ambos campos por seguridad
-                    emailInput.value = "";
+                    // Solo limpiar password, mantener email para corregir
                     passwordInput.value = "";
-                    emailInput.focus();
+                    passwordInput.focus();
                 }, 2500);
             }
         });

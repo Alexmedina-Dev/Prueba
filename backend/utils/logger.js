@@ -46,14 +46,12 @@ function analizarError(tipo, mensaje, ruta, stack) {
       texto.includes('undefined is not') ||
       texto.includes('500') && tipo === 'ERROR_SERVER' ||
       texto.includes('timeout') ||
-      texto.includes('quota exceeded') ||
-      ruta === '/api/login' && mensaje.includes('401')) {
+      texto.includes('quota exceeded')) {
     return {
       severidad: 'HIGH',
       categoria: texto.includes('dup') || texto.includes('constraint') ? 'BASE_DE_DATOS' :
                  texto.includes('undefined') || texto.includes('cannot read') ? 'CODIGO' :
-                 texto.includes('quota') || texto.includes('timeout') ? 'RED' :
-                 texto.includes('login') || texto.includes('auth') ? 'AUTENTICACION' : 'API',
+                 texto.includes('quota') || texto.includes('timeout') ? 'RED' : 'API',
       sugerencia: texto.includes('dup') ? 'Verificar que no exista duplicado en base de datos' :
                   texto.includes('undefined') ? 'Revisar variables no definidas en el código' :
                   texto.includes('quota') ? 'Límite de Google Sheets alcanzado. Esperar 1 minuto o usar caché.' :
@@ -68,19 +66,26 @@ function analizarError(tipo, mensaje, ruta, stack) {
       texto.includes('404') ||
       texto.includes('400') ||
       texto.includes('validation') ||
-      texto.includes('required') ||
-      mensaje.includes('401')) {
+      texto.includes('required')) {
     return {
       severidad: 'MEDIUM',
       categoria: tipo === 'ERROR_SHEETS' ? 'GOOGLE_SHEETS' :
                  texto.includes('404') ? 'RUTA' :
-                 texto.includes('401') || ruta?.includes('admin') ? 'AUTENTICACION' :
+                 ruta?.includes('admin') ? 'AUTENTICACION' :
                  texto.includes('validation') || texto.includes('required') ? 'VALIDACION' : 'CLIENTE',
       sugerencia: tipo === 'ERROR_SHEETS' ? 'Verificar credenciales de Google Cloud y permisos del Sheet' :
                   texto.includes('404') ? 'Verificar que la ruta exista en server.js' :
-                  texto.includes('401') ? 'Usuario no autenticado o token expirado. Requiere login.' :
                   texto.includes('validation') ? 'Revisar validaciones en frontend y backend' :
                   'Error del cliente. Verificar request y headers.'
+    };
+  }
+  
+  // Login 401 (contraseña incorrecta) → BAJO, es comportamiento normal
+  if (ruta === '/api/login' && mensaje.includes('401')) {
+    return {
+      severidad: 'LOW',
+      categoria: 'AUTENTICACION',
+      sugerencia: 'Contraseña incorrecta. Usuario debe reintentar. No es un bug del sistema.'
     };
   }
   
