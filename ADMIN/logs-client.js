@@ -3,6 +3,12 @@ let paginaActual = 1;
 let refrescando = false;
 let intervaloRefresh = null;
 
+function cerrarSesion() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = '/index.html';
+}
+
 function authHeaders() {
   const token = localStorage.getItem('token');
   return token ? { 'Authorization': 'Bearer ' + token } : {};
