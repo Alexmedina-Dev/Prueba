@@ -1,6 +1,6 @@
-/**
+﻿/**
  * Logger de errores inteligente para MotoVerso
- * Guarda errores en MySQL con clasificación automática de severidad y sugerencias
+ * Guarda errores en MySQL con clasificaciÃ³n automÃ¡tica de severidad y sugerencias
  */
 
 const fs = require('fs');
@@ -16,7 +16,7 @@ if (!fs.existsSync(LOGS_DIR)) {
 const LOG_FILE = path.join(LOGS_DIR, 'errores.log');
 
 /**
- * Analiza un error y determina su severidad, categoría y sugerencia
+ * Analiza un error y determina su severidad, categorÃ­a y sugerencia
  */
 function analizarError(tipo, mensaje, ruta, stack) {
   // Null-safety: asegurar que mensaje no sea null/undefined
@@ -26,7 +26,7 @@ function analizarError(tipo, mensaje, ruta, stack) {
   const safeStack = stack || '';
   const texto = `${safeTipo} ${safeMensaje} ${safeRuta} ${safeStack}`.toLowerCase();
   
-  // CRÍTICO: Errores que detienen la app o comprometen seguridad
+  // CRÃTICO: Errores que detienen la app o comprometen seguridad
   if (texto.includes('cannot connect') || 
       texto.includes('econnrefused') || 
       texto.includes('connection lost') ||
@@ -38,9 +38,9 @@ function analizarError(tipo, mensaje, ruta, stack) {
       severidad: 'CRITICAL',
       categoria: texto.includes('mysql') || texto.includes('database') ? 'BASE_DE_DATOS' : 
                  texto.includes('jwt') || texto.includes('auth') ? 'SEGURIDAD' : 'SISTEMA',
-      sugerencia: texto.includes('mysql') ? 'Verificar conexión MySQL. Revisar variables DB_HOST, DB_USER, DB_PASSWORD en .env' :
+      sugerencia: texto.includes('mysql') ? 'Verificar conexiÃ³n MySQL. Revisar variables DB_HOST, DB_USER, DB_PASSWORD en .env' :
                   texto.includes('jwt') ? 'Verificar JWT_SECRET en variables de entorno' :
-                  'Reiniciar servidor inmediatamente. Error crítico del sistema.'
+                  'Reiniciar servidor inmediatamente. Error crÃ­tico del sistema.'
     };
   }
   
@@ -58,14 +58,22 @@ function analizarError(tipo, mensaje, ruta, stack) {
                  texto.includes('undefined') || texto.includes('cannot read') ? 'CODIGO' :
                  texto.includes('quota') || texto.includes('timeout') ? 'RED' : 'API',
       sugerencia: texto.includes('dup') ? 'Verificar que no exista duplicado en base de datos' :
-                  texto.includes('undefined') ? 'Revisar variables no definidas en el código' :
-                  texto.includes('quota') ? 'Límite de Google Sheets alcanzado. Esperar 1 minuto o usar caché.' :
+                  texto.includes('undefined') ? 'Revisar variables no definidas en el cÃ³digo' :
+                  texto.includes('quota') ? 'LÃ­mite de Google Sheets alcanzado. Esperar 1 minuto o usar cachÃ©.' :
                   texto.includes('timeout') ? 'Servidor lento. Verificar recursos o consultas pesadas.' :
                   'Revisar endpoint y validaciones de entrada.'
     };
   }
+  // Login 401 (contraseña incorrecta) -> BAJO, es comportamiento normal
+  if (ruta === '/api/login' && safeMensaje.includes('401')) {
+    return {
+      severidad: 'LOW',
+      categoria: 'AUTENTICACION',
+      sugerencia: 'Contraseña incorrecta. Usuario debe reintentar. No es un bug del sistema.'
+    };
+  }
   
-  // MEDIO: Errores de cliente o configuración
+  // MEDIO: Errores de cliente o configuracion
   if (tipo === 'ERROR_CLIENT' ||
       tipo === 'ERROR_SHEETS' ||
       texto.includes('404') ||
@@ -85,15 +93,6 @@ function analizarError(tipo, mensaje, ruta, stack) {
     };
   }
   
-  // Login 401 (contraseña incorrecta) → BAJO, es comportamiento normal
-  if (ruta === '/api/login' && mensaje.includes('401')) {
-    return {
-      severidad: 'LOW',
-      categoria: 'AUTENTICACION',
-      sugerencia: 'Contraseña incorrecta. Usuario debe reintentar. No es un bug del sistema.'
-    };
-  }
-  
   // BAJO: Errores menores o informativos
   return {
     severidad: 'LOW',
@@ -109,7 +108,7 @@ async function logError({ tipo = 'ERROR', ruta, metodo, mensaje, stack, datos, u
   const fecha = new Date();
   const fechaStr = fecha.toISOString();
   
-  // Analizar error automáticamente
+  // Analizar error automÃ¡ticamente
   const analisis = analizarError(tipo, mensaje, ruta, stack);
 
   // 1. Guardar en archivo de texto
@@ -135,7 +134,7 @@ async function logError({ tipo = 'ERROR', ruta, metodo, mensaje, stack, datos, u
   const autoFix = await autoFixError(analisis, mensaje, ruta);
   if (autoFix.fixed) {
     logBlock += `AUTO-FIX: ${autoFix.action}\n`;
-    console.log(`🤖 Auto-fix aplicado: ${autoFix.action}`);
+    console.log(`ðŸ¤– Auto-fix aplicado: ${autoFix.action}`);
   }
 
   // 4. Guardar en MySQL
@@ -193,46 +192,47 @@ function requestLogger(req, res, next) {
 }
 
 /**
- * Intenta arreglar errores automáticamente sin intervención humana
+ * Intenta arreglar errores automÃ¡ticamente sin intervenciÃ³n humana
  */
 async function autoFixError(analisis, mensaje, ruta) {
+  mensaje = mensaje || '';
   const texto = `${mensaje} ${ruta || ''}`.toLowerCase();
   
-  // 1. MySQL connection lost / timeout → Reconectar pool
+  // 1. MySQL connection lost / timeout â†’ Reconectar pool
   if (texto.includes('econnrefused') || 
       texto.includes('connection lost') ||
       texto.includes('connect timeout') ||
       texto.includes('cannot connect')) {
     try {
-      console.log('🤖 Auto-fix: Reconectando MySQL...');
+      console.log('ðŸ¤– Auto-fix: Reconectando MySQL...');
       await pool.execute('SELECT 1'); // Ping para reconectar
-      console.log('✅ Auto-fix: MySQL reconectado');
-      return { fixed: true, action: 'MySQL reconectado automáticamente' };
+      console.log('âœ… Auto-fix: MySQL reconectado');
+      return { fixed: true, action: 'MySQL reconectado automÃ¡ticamente' };
     } catch(e) {
-      console.error('❌ Auto-fix: No se pudo reconectar MySQL:', e.message);
-      return { fixed: false, action: 'Reconexión MySQL fallida' };
+      console.error('âŒ Auto-fix: No se pudo reconectar MySQL:', e.message);
+      return { fixed: false, action: 'ReconexiÃ³n MySQL fallida' };
     }
   }
   
-  // 2. Google Sheets quota exceeded → No se puede auto-fixar, requiere esperar
+  // 2. Google Sheets quota exceeded â†’ No se puede auto-fixar, requiere esperar
   if (texto.includes('quota') || texto.includes('rate limit')) {
-    console.log('🤖 Auto-fix: Sheets quota exceeded. No se puede auto-reparar. Requiere esperar 60-120s.');
-    return { fixed: false, action: 'Quota de Google Sheets excedido. sheets-queue.js ya reintentará automáticamente. No requiere acción manual.' };
+    console.log('ðŸ¤– Auto-fix: Sheets quota exceeded. No se puede auto-reparar. Requiere esperar 60-120s.');
+    return { fixed: false, action: 'Quota de Google Sheets excedido. sheets-queue.js ya reintentarÃ¡ automÃ¡ticamente. No requiere acciÃ³n manual.' };
   }
   
-  // 3. 401 en polling de servicios → No es bug, es auth expirado
+  // 3. 401 en polling de servicios â†’ No es bug, es auth expirado
   if (ruta && ruta.includes('pendientes') && mensaje.includes('401')) {
-    console.log('🤖 Auto-fix: Polling sin sesión. Ignorando (no es error).');
-    return { fixed: true, action: 'Polling ignorado - usuario sin sesión' };
+    console.log('ðŸ¤– Auto-fix: Polling sin sesiÃ³n. Ignorando (no es error).');
+    return { fixed: true, action: 'Polling ignorado - usuario sin sesiÃ³n' };
   }
   
-  // 4. Timeout de consulta → No se puede auto-fixar, requiere optimización
+  // 4. Timeout de consulta â†’ No se puede auto-fixar, requiere optimizaciÃ³n
   if (texto.includes('timeout') && !texto.includes('connect')) {
-    console.log('🤖 Auto-fix: Query timeout. No se puede auto-reparar. Requiere optimización.');
-    return { fixed: false, action: 'Query muy lenta. Requiere optimizar índices o paginar resultados.' };
+    console.log('ðŸ¤– Auto-fix: Query timeout. No se puede auto-reparar. Requiere optimizaciÃ³n.');
+    return { fixed: false, action: 'Query muy lenta. Requiere optimizar Ã­ndices o paginar resultados.' };
   }
   
-  return { fixed: false, action: 'Requiere intervención manual' };
+  return { fixed: false, action: 'Requiere intervenciÃ³n manual' };
 }
 
 /**
@@ -252,7 +252,7 @@ function errorHandler(err, req, res, next) {
     ip: req.ip || req.connection.remoteAddress
   });
 
-  // No exponer detalles del error al cliente en producción
+  // No exponer detalles del error al cliente en producciÃ³n
   const isDev = process.env.NODE_ENV === 'development';
   res.status(500).json({
     error: 'Error interno del servidor',
@@ -282,9 +282,9 @@ async function crearTablaLogs() {
         INDEX idx_ruta (ruta)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
     `);
-    console.log('✅ Tabla logs_errores creada/verificada');
+    console.log('âœ… Tabla logs_errores creada/verificada');
   } catch (e) {
-    console.error('❌ Error creando tabla logs_errores:', e.message);
+    console.error('âŒ Error creando tabla logs_errores:', e.message);
   }
 }
 
