@@ -390,6 +390,20 @@
       font-size: 14px;
     }
 
+    .btn-cancelar {
+      background-color: #f44336;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn-cancelar:hover {
+      background-color: #d32f2f;
+    }
+
     .btn-nueva-orden {
       background-color: #4CAF50;
       color: white;
@@ -928,9 +942,10 @@
         <input type="text" id="placa" style="text-transform: uppercase;" placeholder="Ej: PPP77D, LLT25Ñ"
           onkeydown="if(event.key==='Enter')nuevaBusqueda()">
       </div>
-      <div style="display:flex; align-items:flex-end;">
+      <div style="display:flex; align-items:flex-end; gap: 8px;">
         <button class="btn-limpiar" onclick="nuevaBusqueda()">Nueva Búsqueda</button>
         <button class="btn-nueva-orden" onclick="nuevaOrden()">➕ Nueva Orden</button>
+        <button class="btn-cancelar" onclick="limpiarFormulario()">✕ Cancelar</button>
       </div>
     </div>
     <div id="info-vehiculo" class="info-vehiculo"></div>

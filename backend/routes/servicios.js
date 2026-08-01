@@ -17,8 +17,8 @@ router.get('/abiertos', auth, async (req, res) => {
         s.total_repuestos, s.total_mano_obra, s.gran_total,
         s.estado, s.comentarios, s.fecha_salida,
         s.lockedBy, s.lockedAt,
-        v.modelo,
-        c.nombre AS nombre, c.telefono AS telefono, c.correo AS correo, c.cedula
+        v.idServicio AS vehiculo_idServicio, v.modelo,
+        c.idServicio AS cliente_idServicio, c.nombre AS nombre, c.telefono AS telefono, c.correo AS correo, c.cedula
       FROM servicios s
       LEFT JOIN vehiculos v ON s.placa = v.placa
       LEFT JOIN clientes c ON v.cedula_cliente = c.cedula
@@ -79,8 +79,8 @@ router.get('/pendientes', auth, async (req, res) => {
         s.idServicio, s.fecha, s.placa, s.tecnico,
         s.diagnostico, s.total_repuestos, s.total_mano_obra, s.gran_total,
         s.estado, s.comentarios,
-        v.modelo,
-        c.nombre AS nombre, c.cedula,
+        v.idServicio AS vehiculo_idServicio, v.modelo,
+        c.idServicio AS cliente_idServicio, c.nombre AS nombre, c.cedula,
         DATEDIFF(NOW(), s.fecha) AS dias_abierto
       FROM servicios s
       LEFT JOIN vehiculos v ON s.placa = v.placa
@@ -114,8 +114,8 @@ router.get('/:id', auth, async (req, res) => {
         s.total_repuestos, s.total_mano_obra, s.gran_total,
         s.estado, s.comentarios, s.fecha_salida,
         s.lockedBy, s.lockedAt,
-        v.modelo,
-        c.nombre AS nombre, c.telefono AS telefono, c.correo AS correo, c.cedula
+        v.idServicio AS vehiculo_idServicio, v.modelo,
+        c.idServicio AS cliente_idServicio, c.nombre AS nombre, c.telefono AS telefono, c.correo AS correo, c.cedula
       FROM servicios s
       LEFT JOIN vehiculos v ON s.placa = v.placa
       LEFT JOIN clientes c ON v.cedula_cliente = c.cedula
@@ -162,7 +162,7 @@ router.post('/buscar-placa', auth, async (req, res) => {
 
     // Buscar vehículo y cliente
     const [vehiculo] = await pool.execute(`
-      SELECT v.*, c.nombre AS cliente_nombre, c.telefono, c.correo
+      SELECT v.idServicio AS vehiculo_idServicio, v.*, c.idServicio AS cliente_idServicio, c.nombre AS cliente_nombre, c.telefono, c.correo
       FROM vehiculos v
       LEFT JOIN clientes c ON v.cedula_cliente = c.cedula
       WHERE v.placa = ?
@@ -219,6 +219,13 @@ router.post('/guardar', auth, async (req, res) => {
       estado, comentarios
     } = req.body;
 
+    // Pre-generar ID para nuevos servicios (ANTES de insertar cliente/vehículo)
+    let nuevoId = null;
+    if (!idServicio) {
+      nuevoId = `SRV-${Date.now()}`;
+    }
+    const targetId = idServicio || nuevoId;
+
     // Validar que no exista orden abierta para esta placa al crear nuevo servicio
     if (!idServicio) {
       const [existing] = await conn.execute(
@@ -233,24 +240,26 @@ router.post('/guardar', auth, async (req, res) => {
       }
     }
 
-    // 1. Upsert cliente
+    // 1. Upsert cliente (con targetId - ya sea idServicio existente o nuevoId generado)
     await conn.execute(`
-      INSERT INTO clientes (cedula, nombre, telefono, correo)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO clientes (idServicio, cedula, nombre, telefono, correo)
+      VALUES (?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
+        idServicio = VALUES(idServicio),
         nombre = VALUES(nombre),
         telefono = VALUES(telefono),
         correo = VALUES(correo)
-    `, [cedula, nombre_cliente, telefono, correo]);
+    `, [targetId, cedula, nombre_cliente, telefono, correo]);
 
-    // 2. Upsert vehículo
+    // 2. Upsert vehículo (con targetId - ya sea idServicio existente o nuevoId generado)
     await conn.execute(`
-      INSERT INTO vehiculos (placa, cedula_cliente, modelo)
-      VALUES (?, ?, ?)
+      INSERT INTO vehiculos (idServicio, placa, cedula_cliente, modelo)
+      VALUES (?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
+        idServicio = VALUES(idServicio),
         cedula_cliente = VALUES(cedula_cliente),
         modelo = VALUES(modelo)
-    `, [placa, cedula, modelo]);
+    `, [targetId, placa, cedula, modelo]);
 
     // 3. Calcular totales desde detalle_servicios
     let calc_total_repuestos = 0;
@@ -273,7 +282,7 @@ router.post('/guardar', auth, async (req, res) => {
     const fechaSalida = (estado === 'Cerrado') ? 'NOW()' : null;
 
     // 5. Insert or update servicio
-    let nuevoId = null;
+    // NOTA: nuevoId ya fue generado arriba si es un servicio nuevo
     if (idServicio) {
       // Verificar si ya existe
       const [existing] = await conn.execute(
@@ -337,8 +346,7 @@ router.post('/guardar', auth, async (req, res) => {
         }
       }
     } else {
-      // Generar idServicio único (formato corto: SRV-timestamp)
-      nuevoId = `SRV-${Date.now()}`;
+      // Usar nuevoId ya generado arriba (mismo ID usado para cliente/vehículo)
       if (estado === 'Cerrado' && fechaSalida) {
         await conn.execute(`
           INSERT INTO servicios
@@ -367,7 +375,7 @@ router.post('/guardar', auth, async (req, res) => {
     }
 
     // 6. Delete + Insert detalle_servicios
-    const targetId = idServicio || nuevoId;
+    // targetId ya está definido arriba
     if (detalle_servicios && Array.isArray(detalle_servicios)) {
       await conn.execute('DELETE FROM detalle_servicios WHERE idServicio=?', [targetId]);
 

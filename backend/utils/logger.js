@@ -166,6 +166,19 @@ async function logError({ tipo = 'ERROR', ruta, metodo, mensaje, stack, datos, u
 /**
  * Middleware de Express para loguear requests
  */
+/**
+ * Rutas que devuelven 401/404 de forma esperada (no son errores reales)
+ * - Login fallido: usuario metió mal contraseña (comportamiento normal)
+ * - Polling sin sesión: navegador hace requests sin token (normal después de logout)
+ */
+const EXPECTED_401_ROUTES = [
+  '/api/login',
+  '/api/servicios/pendientes',
+  '/api/servicios/abiertos',
+  '/api/admin/logs',
+  '/api/admin/logs-stats'
+];
+
 function requestLogger(req, res, next) {
   const start = Date.now();
   
@@ -174,8 +187,11 @@ function requestLogger(req, res, next) {
     const duration = Date.now() - start;
     const usuario = req.user ? req.user.email : 'anonimo';
     
-    // Solo loguear errores (status >= 400) o requests lentas (> 5 segundos)
-    if (res.statusCode >= 400 || duration > 5000) {
+    // No loguear 401 de rutas donde es comportamiento esperado (usuario sin sesión)
+    const isExpected401 = res.statusCode === 401 && EXPECTED_401_ROUTES.some(route => req.originalUrl.startsWith(route));
+    
+    // Solo loguear errores reales (status >= 400, excepto 401 esperados) o requests lentas (> 5 segundos)
+    if ((res.statusCode >= 400 && !isExpected401) || duration > 5000) {
       logError({
         tipo: res.statusCode >= 500 ? 'ERROR_SERVER' : 'ERROR_CLIENT',
         ruta: req.originalUrl,

@@ -236,7 +236,7 @@ async function cambiarPassword(e) {
   }
 
   if (nueva !== confirmar) {
-    msgEl.innerText = 'La nueva contraseña y la confirmación no coinciden.';
+    msgEl.innerText = 'La nueva claseña y la confirmación no coinciden.';
     return false;
   }
 
@@ -549,8 +549,13 @@ function cargarDatosServicioAbierto(srv, skipLock) {
 }
 
 function nuevaBusqueda() {
+  document.getElementById('placa').disabled = false;
+  document.getElementById('placa').focus();
   const placa = document.getElementById('placa').value.trim().toUpperCase();
-  if (placa.length < 3) return;
+  if (placa.length < 3) {
+    document.getElementById('info-vehiculo').innerText = "Ingrese al menos 3 caracteres y presione Nueva Búsqueda de nuevo.";
+    return;
+  }
   document.getElementById('info-vehiculo').innerText = "Buscando...";
 
   // Buscar si hay orden ABIERTA para esta placa
@@ -691,23 +696,42 @@ function procesarServicio(estado) {
 }
 
 function nuevaOrden() {
+  document.getElementById('placa').disabled = false;
+  document.getElementById('placa').focus();
   const placa = document.getElementById('placa').value.trim().toUpperCase();
   if (!placa) {
-    mostrarModal("Atención", "Ingrese una placa primero");
+    document.getElementById('info-vehiculo').innerText = "Ingrese una placa y presione Nueva Orden de nuevo.";
     return;
   }
 
-  // Limpiar cualquier bloqueo residual
-  servicioBloqueado = false;
-  document.getElementById('locked-overlay').classList.remove('active');
-
-  fetch(`${API_BASE}/api/servicios/buscar-placa`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ placa })
+  // Verificar si ya hay una orden abierta para esta placa
+  fetch(`${API_BASE}/api/servicios/abiertos`, {
+    headers: getAuthHeaders(false)
   })
     .then(res => {
       if (!res.ok) throw new Error('Error HTTP ' + res.status);
+      return res.json();
+    })
+    .then(servicios => {
+      const existente = servicios.find(s => s.placa === placa);
+      if (existente) {
+        // Ya hay orden abierta → NO permitir crear nueva
+        mostrarModal("Atención", "Ya hay una orden abierta para esta placa");
+        return;
+      }
+
+      // No hay orden abierta → proceder a crear nueva orden
+      servicioBloqueado = false;
+      document.getElementById('locked-overlay').classList.remove('active');
+
+      return fetch(`${API_BASE}/api/servicios/buscar-placa`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ placa })
+      });
+    })
+    .then(res => {
+      if (!res || !res.ok) throw new Error('Error HTTP ' + res.status);
       return res.json();
     })
     .then(res => {
