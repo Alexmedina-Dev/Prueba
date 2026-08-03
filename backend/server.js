@@ -9,11 +9,22 @@ const { requestLogger, errorHandler, crearTablaLogs, logError } = require('./uti
 const app = express();
 const server = http.createServer(app);
 
-// CORS: en producción solo permitir el dominio real, en desarrollo todo
+// CORS: múltiples orígenes permitidos
 const isProduction = process.env.NODE_ENV === 'production';
-const allowedOrigin = process.env.ALLOWED_ORIGIN || 'http://localhost:3000';
+// Parsear ALLOWED_ORIGINS (coma-separado) o usar ALLOWED_ORIGIN (legacy)
+const rawOrigins = process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || '';
+const allowedOrigins = rawOrigins
+  .split(',')
+  .map(o => o.trim())
+  .filter(o => o.length > 0);
+
+// En producción, solo permitir orígenes configurados
+// En desarrollo, permitir todo
 const corsOptions = isProduction 
-  ? { origin: [allowedOrigin, 'https://' + allowedOrigin.replace(/^https?:\/\//, '')] }
+  ? { 
+      origin: allowedOrigins.length > 0 ? allowedOrigins : ['https://www.motoverso.app', 'https://prueba.seenode.app'],
+      credentials: true 
+    }
   : { origin: '*' };
 
 const io = new Server(server, { cors: corsOptions });
