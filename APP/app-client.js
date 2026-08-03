@@ -928,6 +928,13 @@ async function ejecutarCierre() {
     return;
   }
 
+  // Paso 0: Advertencia sobre órdenes abiertas (problema real del taller)
+  const advMsg = `⚠️ <b>IMPORTANTE:</b><br><br>
+Antes de generar el cierre, verifique que <b>NO haya órdenes ABIERTAS</b> del mecánico <b>${tecnico}</b> que ya estén cerradas en los papeles de Don Mauricio.<br><br>
+Si hay órdenes abiertas que ya fueron entregadas, <b>cierrelas primero en el sistema</b> para que aparezcan en este cierre y no les falte plata al final del día.`;
+  const advOk = await mostrarConfirmModal("⚠️ Verificación Previa", advMsg);
+  if (!advOk) return;
+
   // Paso 1: Confirmación profesional
   const confirmMsg = `¿Está seguro que desea hacer el cierre diario del mecánico <b>${tecnico}</b>?`;
   const ok = await mostrarConfirmModal("Cierre Diario", confirmMsg);
