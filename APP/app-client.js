@@ -152,6 +152,40 @@ function mostrarConfirmModal(titulo, mensaje) {
   });
 }
 
+function mostrarPinModal(titulo, mensaje) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('modal-pin');
+    document.getElementById('pin-titulo').innerText = titulo;
+    document.getElementById('pin-mensaje').innerHTML = mensaje.replace(/\n/g, '<br>');
+    const input = document.getElementById('pin-input');
+    input.value = '';
+    overlay.style.display = 'flex';
+    input.focus();
+
+    const btnAceptar = document.getElementById('btn-pin-aceptar');
+    const btnCancelar = document.getElementById('btn-pin-cancelar');
+
+    const limpiar = () => {
+      overlay.style.display = 'none';
+      btnAceptar.removeEventListener('click', onAceptar);
+      btnCancelar.removeEventListener('click', onCancelar);
+      input.removeEventListener('keydown', onEnter);
+    };
+
+    const onAceptar = () => { 
+      const val = input.value.trim();
+      limpiar(); 
+      resolve(val); 
+    };
+    const onCancelar = () => { limpiar(); resolve(null); };
+    const onEnter = (e) => { if (e.key === 'Enter') onAceptar(); };
+
+    btnAceptar.addEventListener('click', onAceptar);
+    btnCancelar.addEventListener('click', onCancelar);
+    input.addEventListener('keydown', onEnter);
+  });
+}
+
 function cerrarSesion() {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
@@ -319,6 +353,20 @@ window.onload = function () {
   setupSocketListeners();
   // Placa bloqueada por defecto - solo se habilita con "Nueva Orden" o "Nueva Búsqueda"
   document.getElementById('placa').disabled = true;
+  
+  // Ocultar sección de cierre diario para usuarios no autorizados
+  if (!verificarPermisoCierre()) {
+    const cierreSection = document.querySelector('.cierre-section');
+    if (cierreSection) {
+      cierreSection.style.display = 'none';
+    }
+  }
+  
+  // Mostrar controles de admin de mecánicos solo para Developer (Alex)
+  const adminMecanicos = document.getElementById('admin-mecanicos');
+  if (adminMecanicos && esDeveloper()) {
+    adminMecanicos.style.display = 'flex';
+  }
 };
 
 function formatoDinero(num) {
@@ -799,10 +847,99 @@ function limpiarFormulario() {
   calcularTotalesGlobales();
 }
 
-function ejecutarCierre() {
+function verificarPermisoCierre() {
+  try {
+    const u = JSON.parse(localStorage.getItem('user') || '{}');
+    const email = u.email || '';
+    return email === 'repuestoshannasmotos@gmail.com' || 
+           email === 'motoversotaller@gmail.com' ||
+           email === 'alexandermedi53h@gmail.com';
+  } catch(e) {
+    return false;
+  }
+}
+
+function esDeveloper() {
+  try {
+    const u = JSON.parse(localStorage.getItem('user') || '{}');
+    return u.role === 'developer' || u.email === 'alexandermedi53h@gmail.com';
+  } catch(e) {
+    return false;
+  }
+}
+
+function agregarMecanico() {
+  const input = document.getElementById('nuevoMecanico');
+  const nombre = input.value.trim();
+  if (!nombre) {
+    mostrarModal("Atención", "Ingrese un nombre para el mecánico.");
+    return;
+  }
+  
+  const select = document.getElementById('tecnico');
+  // Verificar si ya existe
+  const existe = Array.from(select.options).some(opt => opt.value === nombre);
+  if (existe) {
+    mostrarModal("Atención", "El mecánico ya existe en la lista.");
+    return;
+  }
+  
+  const option = document.createElement('option');
+  option.value = nombre;
+  option.textContent = nombre;
+  select.appendChild(option);
+  
+  input.value = '';
+  mostrarModal("Éxito", `Mecánico ${nombre} agregado correctamente.`);
+}
+
+async function eliminarMecanico() {
+  const select = document.getElementById('tecnico');
+  const seleccionado = select.value;
+  
+  if (!seleccionado) {
+    mostrarModal("Atención", "Seleccione un mecánico para eliminar.");
+    return;
+  }
+  
+  const ok = await mostrarConfirmModal("Eliminar mecánico", `¿Está seguro que desea eliminar al mecánico <b>${seleccionado}</b>?`);
+  if (!ok) return;
+  
+  const option = select.querySelector(`option[value="${seleccionado}"]`);
+  if (option && !option.disabled) {
+    option.remove();
+    select.value = '';
+    mostrarModal("Éxito", `Mecánico ${seleccionado} eliminado.`);
+  }
+}
+
+async function ejecutarCierre() {
+  // Verificar permiso
+  if (!verificarPermisoCierre()) {
+    mostrarModal("Acceso Denegado", "Solo Nury, Don Mauricio y el administrador pueden realizar cierres diarios.");
+    return;
+  }
+
   const fecha = document.getElementById('fechaCierre').value;
   const tecnico = document.getElementById('tecnicoCierre').value;
   if (!fecha) return;
+  if (!tecnico) {
+    mostrarModal("Atención", "Seleccione un mecánico primero.");
+    return;
+  }
+
+  // Paso 1: Confirmación profesional
+  const confirmMsg = `¿Está seguro que desea hacer el cierre diario del mecánico <b>${tecnico}</b>?`;
+  const ok = await mostrarConfirmModal("Cierre Diario", confirmMsg);
+  if (!ok) return;
+
+  // Paso 2: PIN de seguridad profesional
+  const pin = await mostrarPinModal("🔒 Verificación de seguridad", `Ingrese el PIN de 4 dígitos para autorizar el cierre de <b>${tecnico}</b>.`);
+  if (pin === null) return; // Cancelado
+  if (pin !== '7319') {
+    mostrarModal("Acceso Denegado", "PIN incorrecto. Operación cancelada.");
+    return;
+  }
   
   const btn = document.querySelector('.cierre-section .action-btn');
   const originalText = btn.innerText;

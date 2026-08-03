@@ -969,17 +969,24 @@
     <hr style="margin: 15px 0; border-top: 1px solid #eee;">
     <div class="form-group">
       <label>Técnico asignado:</label>
-      <select id="tecnico">
-        <option value="" disabled selected>Selecciona un técnico...</option>
-        <option value="Andres">Andres</option>
-        <option value="Brayan">Brayan</option>
-        <option value="Yeison">Yeison</option>
-        <option value="Harold">Harold</option>
-        <option value="Dairon">Dairon</option>
-        <option value="Johan">Johan</option>
-        <option value="Alexander">Alexander</option>
-        <option value="Mauricio">Mauricio</option>
-      </select>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <select id="tecnico" style="flex:1;">
+          <option value="" disabled selected>Selecciona un técnico...</option>
+          <option value="Andres">Andres</option>
+          <option value="Brayan">Brayan</option>
+          <option value="Yeison">Yeison</option>
+          <option value="Harold">Harold</option>
+          <option value="Dairon">Dairon</option>
+          <option value="Johan">Johan</option>
+          <option value="Alexander">Alexander</option>
+          <option value="Mauricio">Mauricio</option>
+        </select>
+        <div id="admin-mecanicos" style="display:none; gap:4px;">
+          <input type="text" id="nuevoMecanico" placeholder="Nombre" style="width:100px; padding:6px; border:1px solid #ddd; border-radius:4px;">
+          <button type="button" onclick="agregarMecanico()" style="padding:6px 10px; background:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">+</button>
+          <button type="button" onclick="eliminarMecanico()" style="padding:6px 10px; background:#f44336; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">-</button>
+        </div>
+      </div>
     </div>
     <div class="form-group"><label>Diagnóstico:</label><textarea id="diagnostico" rows="2"></textarea></div>
 
@@ -1104,6 +1111,23 @@
       <div style="display:flex; gap:12px; justify-content:center; margin-top:20px;">
         <button id="btn-confirmar-si" class="modal-btn" style="background:#d32f2f; min-width:100px;">Sí, cerrar</button>
         <button id="btn-confirmar-no" class="modal-btn" style="background:#757575; min-width:100px;">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal PIN de seguridad -->
+  <div id="modal-pin" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <h3 id="pin-titulo" style="margin-top:0; color:#333;">🔒 Verificación de seguridad</h3>
+      <p id="pin-mensaje" style="font-size:15px;"></p>
+      <div class="form-group" style="margin:16px 0;">
+        <input type="password" id="pin-input" maxlength="4" placeholder="Ingrese PIN" 
+               style="width:100%; padding:12px; font-size:18px; text-align:center; 
+                      border:2px solid #ddd; border-radius:8px; letter-spacing:8px;">
+      </div>
+      <div style="display:flex; gap:12px; justify-content:center; margin-top:20px;">
+        <button id="btn-pin-aceptar" class="modal-btn" style="background:#1976d2; min-width:100px;">Aceptar</button>
+        <button id="btn-pin-cancelar" class="modal-btn" style="background:#757575; min-width:100px;">Cancelar</button>
       </div>
     </div>
   </div>
