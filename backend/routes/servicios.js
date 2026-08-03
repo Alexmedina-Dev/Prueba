@@ -79,7 +79,7 @@ router.get('/pendientes', auth, async (req, res) => {
         s.idServicio, s.fecha, s.placa, s.tecnico,
         s.diagnostico, s.total_repuestos, s.total_mano_obra, s.gran_total,
         s.estado, s.comentarios,
-        v.idServicio AS vehiculo_idServicio, v.modelo,
+        v.idServicio AS vehiculo_idServicio, v.modelo, v.kilometraje,
         c.idServicio AS cliente_idServicio, c.nombre AS nombre, c.cedula,
         DATEDIFF(NOW(), s.fecha) AS dias_abierto
       FROM servicios s
@@ -114,7 +114,7 @@ router.get('/:id', auth, async (req, res) => {
         s.total_repuestos, s.total_mano_obra, s.gran_total,
         s.estado, s.comentarios, s.fecha_salida,
         s.lockedBy, s.lockedAt,
-        v.idServicio AS vehiculo_idServicio, v.modelo,
+        v.idServicio AS vehiculo_idServicio, v.modelo, v.kilometraje,
         c.idServicio AS cliente_idServicio, c.nombre AS nombre, c.telefono AS telefono, c.correo AS correo, c.cedula
       FROM servicios s
       LEFT JOIN vehiculos v ON s.placa = v.placa
@@ -187,7 +187,7 @@ router.post('/buscar-placa', auth, async (req, res) => {
 
     res.json({
       existe: true,
-      vehiculo: { placa: v.placa, modelo: v.modelo, cedula_cliente: v.cedula_cliente },
+      vehiculo: { placa: v.placa, modelo: v.modelo, cedula_cliente: v.cedula_cliente, kilometraje: v.kilometraje },
       cliente: { cedula: v.cedula_cliente, nombre: v.cliente_nombre, telefono: v.telefono, correo: v.correo },
       historial
     });
@@ -253,13 +253,14 @@ router.post('/guardar', auth, async (req, res) => {
 
     // 2. Upsert vehículo (con targetId - ya sea idServicio existente o nuevoId generado)
     await conn.execute(`
-      INSERT INTO vehiculos (idServicio, placa, cedula_cliente, modelo)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO vehiculos (idServicio, placa, cedula_cliente, modelo, kilometraje)
+      VALUES (?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         idServicio = VALUES(idServicio),
         cedula_cliente = VALUES(cedula_cliente),
-        modelo = VALUES(modelo)
-    `, [targetId, placa, cedula, modelo]);
+        modelo = VALUES(modelo),
+        kilometraje = VALUES(kilometraje)
+    `, [targetId, placa, cedula, modelo, req.body.kilometraje || null]);
 
     // 3. Calcular totales desde detalle_servicios
     let calc_total_repuestos = 0;

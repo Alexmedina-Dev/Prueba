@@ -393,6 +393,7 @@ function validarFormulario() {
   const telefono = document.getElementById('telefono').value.trim();
   const correo = document.getElementById('correo').value.trim();
   const modelo = document.getElementById('modelo').value.trim();
+  const kilometraje = document.getElementById('kilometraje').value.trim();
 
   // Placa: alfanumérica + Ñ, 5-7 caracteres (formato colombiano: AAA00A, AAA000A, etc.)
   if (!placa) {
@@ -430,6 +431,11 @@ function validarFormulario() {
   // Marca y Modelo: obligatorio
   if (!modelo || modelo.length < 2) {
     errores.push("La marca y modelo de la moto es obligatoria (mínimo 2 caracteres)");
+  }
+
+  // Kilometraje: si tiene valor, debe ser numérico y positivo
+  if (kilometraje && (!/^\d+$/.test(kilometraje) || parseInt(kilometraje) < 0)) {
+    errores.push("El kilometraje debe ser un número entero positivo");
   }
 
   return errores;
@@ -567,6 +573,7 @@ function cargarDatosServicioAbierto(srv, skipLock) {
   document.getElementById('telefono').value = srv.telefono || "";
   document.getElementById('correo').value = srv.correo || "";
   document.getElementById('modelo').value = srv.modelo || "";
+  document.getElementById('kilometraje').value = srv.kilometraje || "";
   document.getElementById('comentarios').value = srv.comentarios || "";
   document.getElementById('placa').disabled = true;  // Bloquear placa - no se puede hacer click
   document.getElementById('info-vehiculo').innerText = "Editando orden abierta.";
@@ -661,6 +668,7 @@ function procesarServicio(estado) {
     telefono: document.getElementById('telefono').value,
     correo: document.getElementById('correo').value,
     modelo: document.getElementById('modelo').value,
+    kilometraje: document.getElementById('kilometraje').value || null,
     tecnico: document.getElementById('tecnico').value,
     diagnostico: document.getElementById('diagnostico').value,
     comentarios: document.getElementById('comentarios').value,
@@ -790,6 +798,7 @@ function nuevaOrden() {
         document.getElementById('telefono').value = res.cliente.telefono || '';
         document.getElementById('correo').value = res.cliente.correo || '';
         document.getElementById('modelo').value = res.vehiculo.modelo || '';
+        document.getElementById('kilometraje').value = res.vehiculo.kilometraje || '';
         document.getElementById('placa').value = placa;
         document.getElementById('idServicio').value = '';
         document.getElementById('tecnico').value = '';
@@ -808,6 +817,7 @@ function nuevaOrden() {
         document.getElementById('telefono').value = '';
         document.getElementById('correo').value = '';
         document.getElementById('modelo').value = '';
+        document.getElementById('kilometraje').value = '';
         document.getElementById('tecnico').value = '';
         document.getElementById('diagnostico').value = '';
         document.getElementById('comentarios').value = '';
