@@ -56,10 +56,11 @@ async function syncSheets(datos, estado) {
 
     // ── 2. Sincronizar Vehículo en hoja "Vehículos" ──
     // UNA fila por placa: buscar si existe, actualizar o insertar
+    // Columnas: A=idServicio, B=placa, C=cedula_cliente, D=modelo, E=kilometraje
     if (datos.placa) {
       const vehiculoSearch = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'Vehículos!A:D'
+        range: 'Vehículos!A:E'
       });
       const vehiculoRows = vehiculoSearch.data.values || [];
       const vehiculoIdx = vehiculoRows.findIndex(r => r[1] === datos.placa.toUpperCase());
@@ -68,20 +69,21 @@ async function syncSheets(datos, estado) {
         datos.idServicio,
         datos.placa.toUpperCase(),
         datos.cedula || '',
-        datos.modelo || ''
+        datos.modelo || '',
+        datos.kilometraje || ''
       ];
 
       if (vehiculoIdx >= 0) {
         await sheets.spreadsheets.values.update({
           spreadsheetId,
-          range: `Vehículos!A${vehiculoIdx + 1}:D${vehiculoIdx + 1}`,
+          range: `Vehículos!A${vehiculoIdx + 1}:E${vehiculoIdx + 1}`,
           valueInputOption: 'USER_ENTERED',
           requestBody: { values: [vehiculoData] }
         });
       } else {
         await sheets.spreadsheets.values.append({
           spreadsheetId,
-          range: 'Vehículos!A:D',
+          range: 'Vehículos!A:E',
           valueInputOption: 'USER_ENTERED',
           requestBody: { values: [vehiculoData] }
         });

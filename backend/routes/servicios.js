@@ -399,6 +399,7 @@ router.post('/guardar', auth, async (req, res) => {
       fecha: new Date().toISOString(),
       placa,
       modelo,
+      kilometraje: req.body.kilometraje || '',
       cedula,
       cliente: nombre_cliente,
       telefono,
@@ -444,7 +445,7 @@ router.post('/cerrar-rapido', auth, async (req, res) => {
         s.diagnostico, s.detalle_repuestos, s.detalle_servicios,
         s.total_repuestos, s.total_mano_obra, s.gran_total,
         s.estado, s.comentarios, s.fecha_salida,
-        v.modelo,
+        v.modelo, v.kilometraje,
         c.nombre AS nombre, c.telefono AS telefono, c.correo AS correo, c.cedula
       FROM servicios s
       LEFT JOIN vehiculos v ON s.placa = v.placa
@@ -479,6 +480,7 @@ router.post('/cerrar-rapido', auth, async (req, res) => {
       fecha: srvData.fecha,
       placa: srvData.placa,
       modelo: srvData.modelo || '',
+      kilometraje: srvData.kilometraje || '',
       cedula: srvData.cedula || '',
       cliente: srvData.nombre || '',
       telefono: srvData.telefono || '',
