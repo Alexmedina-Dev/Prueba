@@ -26,7 +26,7 @@ async function restoreDesign() {
     sheetId = addRes.data.replies[0].addSheet.properties.sheetId;
   }
 
-  // Fórmulas: primero busca servicio ABIERTO, si no hay muestra el ÚLTIMO
+  // Fórmulas
   const f = {
     fecha: '=IFERROR(TEXT(INDEX(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto"),1),\"DD/MM/YYYY\"),IFERROR(TEXT(INDEX(SORT(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2),1,FALSE),1),\"DD/MM/YYYY\"),\"\"))',
     cliente: '=IFERROR(INDEX(\'Clientes\'!C:C,MATCH(INDEX(\'Vehículos\'!C:C,MATCH(B2,\'Vehículos\'!B:B,0)),\'Clientes\'!B:B,0)),\"")',
@@ -36,24 +36,25 @@ async function restoreDesign() {
   };
 
   const template = [
-    ['MOTOVERSO', ''],                          // 1
-    ['Placa:', 'ABC123'],                        // 2
-    ['Fecha Salida:', f.fecha],                  // 3
-    ['Cliente:', f.cliente],                     // 4
-    ['- - - - - - - - - - - - - - - - - - - - - - - - - - - - -', ''],  // 5
-    ['REPUESTOS:', ''],                          // 6
-    [f.repuestos, ''],                           // 7
-    ['', ''],                                    // 8
-    ['', ''],                                    // 9
-    ['', ''],                                    // 10
-    ['', ''],                                    // 11
-    ['SERVICIO:', ''],                           // 12
-    [f.servicios, ''],                           // 13
-    ['', ''],                                    // 14
-    ['- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -', ''],  // 15
-    ['TOTAL A PAGAR:', f.total]                  // 16
+    ['MOTOVERSO', ''],
+    ['Placa:', 'ABC123'],
+    ['Fecha Salida:', f.fecha],
+    ['Cliente:', f.cliente],
+    ['- - - - - - - - - - - - - - - - - - - - - - - - - - - - -', ''],
+    ['REPUESTOS:', ''],
+    [f.repuestos, ''],
+    ['', ''],
+    ['', ''],
+    ['', ''],
+    ['', ''],
+    ['SERVICIO:', ''],
+    [f.servicios, ''],
+    ['', ''],
+    ['- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -', ''],
+    ['TOTAL A PAGAR:', f.total]
   ];
 
+  // 1. Escribir datos
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
     range: "'GENERAR FACTURA'!A1:B16",
@@ -61,7 +62,7 @@ async function restoreDesign() {
     requestBody: { values: template }
   });
 
-  // Formato
+  // 2. Formato base
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: SPREADSHEET_ID,
     requestBody: {
@@ -76,13 +77,61 @@ async function restoreDesign() {
         { repeatCell: { range: { sheetId, startRowIndex: 12, endRowIndex: 13, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { wrapStrategy: 'WRAP' } }, fields: 'userEnteredFormat.wrapStrategy' } },
         { repeatCell: { range: { sheetId, startRowIndex: 15, endRowIndex: 16, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } },
         { updateBorders: { range: { sheetId, startRowIndex: 15, endRowIndex: 16, startColumnIndex: 0, endColumnIndex: 2 }, top: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, bottom: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, left: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, right: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } } } },
-        { updateDimensionProperties: { range: { sheetId, dimension: 'ROWS', startIndex: 6, endIndex: 7 }, properties: { pixelSize: 120 }, fields: 'pixelSize' } },
-        { updateDimensionProperties: { range: { sheetId, dimension: 'ROWS', startIndex: 12, endIndex: 13 }, properties: { pixelSize: 80 }, fields: 'pixelSize' } }
+        { updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: 1 }, properties: { pixelSize: 450 }, fields: 'pixelSize' } },
+        { updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: 1, endIndex: 2 }, properties: { pixelSize: 250 }, fields: 'pixelSize' } }
       ]
     }
   });
 
-  console.log('✅ GENERAR FACTURA - diseño de imagen + fallback último servicio');
+  // 3. Esperar que las fórmulas se calculen
+  await new Promise(r => setTimeout(r, 3000));
+
+  // 4. Leer el contenido real y ajustar alturas de filas
+  await new Promise(r => setTimeout(r, 5000));
+  const dataRes = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: "'GENERAR FACTURA'!A1:B16",
+    valueRenderOption: 'FORMATTED_VALUE'
+  });
+  const rows = dataRes.data.values || [];
+
+  // Calcular alturas: cada línea de texto ≈ 21px, base 21px
+  const LINE_HEIGHT = 21;
+  const heightRequests = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const cellA = rows[i] ? (rows[i][0] || '') : '';
+    const cellB = rows[i] ? (rows[i][1] || '') : '';
+    const maxLines = Math.max(
+      cellA.split('\n').length,
+      cellB.split('\n').length,
+      1
+    );
+    const height = Math.max(maxLines * LINE_HEIGHT, 21);
+
+    heightRequests.push({
+      updateDimensionProperties: {
+        range: { sheetId, dimension: 'ROWS', startIndex: i, endIndex: i + 1 },
+        properties: { pixelSize: height },
+        fields: 'pixelSize'
+      }
+    });
+  }
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: SPREADSHEET_ID,
+    requestBody: { requests: heightRequests }
+  });
+
+  console.log('✅ GENERAR FACTURA - alturas ajustadas al contenido');
+  rows.forEach((row, i) => {
+    const lines = Math.max(
+      (row[0] || '').split('\n').length,
+      (row[1] || '').split('\n').length,
+      1
+    );
+    console.log(`  Fila ${i+1}: ${lines} línea(s) → ${lines * 21}px`);
+  });
 }
 
 restoreDesign().catch(e => console.error('Error:', e.message));
