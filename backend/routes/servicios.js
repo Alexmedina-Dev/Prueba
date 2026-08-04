@@ -17,7 +17,7 @@ router.get('/abiertos', auth, async (req, res) => {
         s.total_repuestos, s.total_mano_obra, s.gran_total,
         s.estado, s.comentarios, s.fecha_salida,
         s.lockedBy, s.lockedAt,
-        v.idServicio AS vehiculo_idServicio, v.modelo,
+        v.idServicio AS vehiculo_idServicio, v.modelo, v.kilometraje,
         c.idServicio AS cliente_idServicio, c.nombre AS nombre, c.telefono AS telefono, c.correo AS correo, c.cedula
       FROM servicios s
       LEFT JOIN vehiculos v ON s.placa = v.placa
@@ -210,6 +210,10 @@ router.post('/guardar', auth, async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
+
+    // DEBUG: Verificar qué llega del frontend
+    console.log('BACKEND DEBUG - req.body.kilometraje:', req.body.kilometraje, 'tipo:', typeof req.body.kilometraje);
+    console.log('BACKEND DEBUG - req.body keys:', Object.keys(req.body).filter(k => k.includes('kilom')));
 
     const {
       idServicio, cedula, nombre_cliente, telefono, correo,
