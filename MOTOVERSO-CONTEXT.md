@@ -129,8 +129,8 @@ POST   /api/auth/login           → Login, retorna JWT + user info
 POST   /api/auth/change-password → Cambio de contraseña
 GET    /api/clientes/:id         → Obtener cliente por cédula
 POST   /api/clientes             → Crear/actualizar cliente
-GET    /api/vehiculos/:placa     → Obtener vehículo por placa
-POST   /api/vehiculos            → Crear/actualizar vehículo
+GET    /api/vehículos/:placa     → Obtener vehículo por placa
+POST   /api/vehículos            → Crear/actualizar vehículo
 POST   /api/servicios            → Crear/actualizar servicio
 GET    /api/servicios/:id        → Obtener servicio con detalles
 POST   /api/servicios/:id/close  → Cerrar servicio (marcar entregado)
@@ -140,7 +140,7 @@ POST   /api/cierres/generar      → Generar cierre diario (reporte)
 
 ### Lógica de Cierre Diario (Backend)
 ```sql
-1. Recibir: fecha, tecnico
+1. Recibir: fecha, técnico
 2. Buscar servicios:
    SELECT * FROM servicios 
    WHERE estado = 'Cerrado' 
