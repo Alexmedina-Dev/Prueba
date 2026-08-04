@@ -347,6 +347,7 @@ window.addEventListener('keydown', (e) => {
 window.onload = function () {
   cargarAbiertos();
   cargarPendientes();
+  cargarMecanicos(); // Cargar mecánicos desde la base de datos
   document.getElementById('fechaCierre').valueAsDate = new Date();
   setInterval(cargarAbiertos, 15000);
   setInterval(cargarPendientes, 30000);
@@ -381,6 +382,34 @@ function parseCurrency(val) {
   str = str.replace(/\./g, '');        // quitar puntos de miles
   str = str.replace(',', '.');         // convertir coma decimal a punto
   return parseFloat(str) || 0;
+}
+
+// Cargar mecánicos desde la base de datos
+async function cargarMecanicos() {
+  try {
+    const res = await fetch(`${API_BASE}/api/mecanicos`, { headers: getAuthHeaders(false) });
+    if (!res.ok) throw new Error('Error HTTP ' + res.status);
+    const mecanicos = await res.json();
+    
+    const select = document.getElementById('tecnico');
+    // Limpiar opciones actuales excepto la primera (placeholder)
+    while (select.options.length > 1) {
+      select.remove(1);
+    }
+    
+    // Agregar mecánicos desde la base de datos
+    mecanicos.forEach(m => {
+      const option = document.createElement('option');
+      option.value = m.nombre;
+      option.textContent = m.nombre;
+      select.appendChild(option);
+    });
+    
+    console.log(`✅ ${mecanicos.length} mecánicos cargados desde la base de datos`);
+  } catch (err) {
+    console.error('Error cargando mecánicos:', err.message);
+    // Si falla, mantener los mecánicos del HTML como fallback
+  }
 }
 
 // Validación de campos del formulario
@@ -713,6 +742,9 @@ function procesarServicio(estado) {
   datos.correo = datos.correo.trim();
   datos.modelo = datos.modelo.trim();
 
+  // DEBUG: Verificar datos antes de enviar
+  console.log('FRONTEND DEBUG - kilometraje a enviar:', datos.kilometraje, 'tipo:', typeof datos.kilometraje);
+
   // Solo afectar botones del formulario principal (no el de cierre diario)
   const btns = document.querySelectorAll('.btn-guardar, .btn-cerrar');
   btns.forEach(b => { b.disabled = true; b.style.opacity = '0.5'; b.innerText = 'Procesando...'; });
@@ -878,7 +910,7 @@ function esDeveloper() {
   }
 }
 
-function agregarMecanico() {
+async function agregarMecanico() {
   const input = document.getElementById('nuevoMecanico');
   const nombre = input.value.trim();
   if (!nombre) {
@@ -894,13 +926,32 @@ function agregarMecanico() {
     return;
   }
   
-  const option = document.createElement('option');
-  option.value = nombre;
-  option.textContent = nombre;
-  select.appendChild(option);
-  
-  input.value = '';
-  mostrarModal("Éxito", `Mecánico ${nombre} agregado correctamente.`);
+  try {
+    // Guardar en la base de datos
+    const res = await fetch(`${API_BASE}/api/mecanicos`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ nombre })
+    });
+    
+    if (!res.ok) {
+      const data = await res.json();
+      mostrarModal("Error", data.error || "No se pudo agregar el mecánico");
+      return;
+    }
+    
+    // Agregar al select
+    const option = document.createElement('option');
+    option.value = nombre;
+    option.textContent = nombre;
+    select.appendChild(option);
+    
+    input.value = '';
+    mostrarModal("Éxito", `Mecánico ${nombre} agregado correctamente.`);
+  } catch (err) {
+    console.error('Error agregando mecánico:', err);
+    mostrarModal("Error", "Error de conexión al agregar mecánico");
+  }
 }
 
 async function eliminarMecanico() {
@@ -915,11 +966,29 @@ async function eliminarMecanico() {
   const ok = await mostrarConfirmModal("Eliminar mecánico", `¿Está seguro que desea eliminar al mecánico <b>${seleccionado}</b>?`);
   if (!ok) return;
   
-  const option = select.querySelector(`option[value="${seleccionado}"]`);
-  if (option && !option.disabled) {
-    option.remove();
-    select.value = '';
-    mostrarModal("Éxito", `Mecánico ${seleccionado} eliminado.`);
+  try {
+    // Eliminar de la base de datos
+    const res = await fetch(`${API_BASE}/api/mecanicos/${encodeURIComponent(seleccionado)}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(false)
+    });
+    
+    if (!res.ok) {
+      const data = await res.json();
+      mostrarModal("Error", data.error || "No se pudo eliminar el mecánico");
+      return;
+    }
+    
+    // Eliminar del select
+    const option = select.querySelector(`option[value="${seleccionado}"]`);
+    if (option && !option.disabled) {
+      option.remove();
+      select.value = '';
+      mostrarModal("Éxito", `Mecánico ${seleccionado} eliminado.`);
+    }
+  } catch (err) {
+    console.error('Error eliminando mecánico:', err);
+    mostrarModal("Error", "Error de conexión al eliminar mecánico");
   }
 }
 

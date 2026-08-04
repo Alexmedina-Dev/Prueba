@@ -127,6 +127,7 @@ app.use('/api', require('./routes/auth'));
 app.use('/api/servicios', require('./routes/servicios'));
 app.use('/api/cierres', require('./routes/cierres'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/mecanicos', require('./routes/mecanicos'));
 
 // ── .well-known para Chrome Password Manager ────────────────
 app.get('/.well-known/change-password', (req, res) => {
