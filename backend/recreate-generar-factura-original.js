@@ -54,7 +54,6 @@ async function restoreDesign() {
     ['TOTAL A PAGAR:', f.total]
   ];
 
-  // 1. Escribir datos
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
     range: "'GENERAR FACTURA'!A1:B16",
@@ -62,76 +61,37 @@ async function restoreDesign() {
     requestBody: { values: template }
   });
 
-  // 2. Formato base
+  // Formato — SIN alturas fijas, solo wrap text
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: SPREADSHEET_ID,
     requestBody: {
       requests: [
+        // Título
         { mergeCells: { range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 2 }, mergeType: 'MERGE_ALL' } },
         { repeatCell: { range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 14 }, horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)' } },
+        // Labels bold
         { repeatCell: { range: { sheetId, startRowIndex: 1, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } },
+        // Borde verde B2:B4
         { updateBorders: { range: { sheetId, startRowIndex: 1, endRowIndex: 4, startColumnIndex: 1, endColumnIndex: 2 }, top: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, bottom: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, left: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, right: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } } } },
+        // REPUESTOS header bold
         { repeatCell: { range: { sheetId, startRowIndex: 5, endRowIndex: 6, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } },
-        { repeatCell: { range: { sheetId, startRowIndex: 6, endRowIndex: 7, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { wrapStrategy: 'WRAP' } }, fields: 'userEnteredFormat.wrapStrategy' } },
+        // Wrap text en repuestos (fila 7)
+        { repeatCell: { range: { sheetId, startRowIndex: 6, endRowIndex: 7, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { wrapStrategy: 'WRAP', verticalAlignment: 'TOP' } }, fields: 'userEnteredFormat(wrapStrategy,verticalAlignment)' } },
+        // SERVICIO header bold
         { repeatCell: { range: { sheetId, startRowIndex: 11, endRowIndex: 12, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } },
-        { repeatCell: { range: { sheetId, startRowIndex: 12, endRowIndex: 13, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { wrapStrategy: 'WRAP' } }, fields: 'userEnteredFormat.wrapStrategy' } },
+        // Wrap text en servicios (fila 13)
+        { repeatCell: { range: { sheetId, startRowIndex: 12, endRowIndex: 13, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { wrapStrategy: 'WRAP', verticalAlignment: 'TOP' } }, fields: 'userEnteredFormat(wrapStrategy,verticalAlignment)' } },
+        // TOTAL A PAGAR bold + borde verde
         { repeatCell: { range: { sheetId, startRowIndex: 15, endRowIndex: 16, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } },
         { updateBorders: { range: { sheetId, startRowIndex: 15, endRowIndex: 16, startColumnIndex: 0, endColumnIndex: 2 }, top: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, bottom: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, left: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, right: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } } } },
+        // Columnas anchas
         { updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: 1 }, properties: { pixelSize: 450 }, fields: 'pixelSize' } },
         { updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: 1, endIndex: 2 }, properties: { pixelSize: 250 }, fields: 'pixelSize' } }
       ]
     }
   });
 
-  // 3. Esperar que las fórmulas se calculen
-  await new Promise(r => setTimeout(r, 3000));
-
-  // 4. Leer el contenido real y ajustar alturas de filas
-  await new Promise(r => setTimeout(r, 5000));
-  const dataRes = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: "'GENERAR FACTURA'!A1:B16",
-    valueRenderOption: 'FORMATTED_VALUE'
-  });
-  const rows = dataRes.data.values || [];
-
-  // Calcular alturas: cada línea de texto ≈ 21px, base 21px
-  const LINE_HEIGHT = 21;
-  const heightRequests = [];
-
-  for (let i = 0; i < rows.length; i++) {
-    const cellA = rows[i] ? (rows[i][0] || '') : '';
-    const cellB = rows[i] ? (rows[i][1] || '') : '';
-    const maxLines = Math.max(
-      cellA.split('\n').length,
-      cellB.split('\n').length,
-      1
-    );
-    const height = Math.max(maxLines * LINE_HEIGHT, 21);
-
-    heightRequests.push({
-      updateDimensionProperties: {
-        range: { sheetId, dimension: 'ROWS', startIndex: i, endIndex: i + 1 },
-        properties: { pixelSize: height },
-        fields: 'pixelSize'
-      }
-    });
-  }
-
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId: SPREADSHEET_ID,
-    requestBody: { requests: heightRequests }
-  });
-
-  console.log('✅ GENERAR FACTURA - alturas ajustadas al contenido');
-  rows.forEach((row, i) => {
-    const lines = Math.max(
-      (row[0] || '').split('\n').length,
-      (row[1] || '').split('\n').length,
-      1
-    );
-    console.log(`  Fila ${i+1}: ${lines} línea(s) → ${lines * 21}px`);
-  });
+  console.log('✅ GENERAR FACTURA - wrap text + verticalAlignment TOP');
 }
 
 restoreDesign().catch(e => console.error('Error:', e.message));
