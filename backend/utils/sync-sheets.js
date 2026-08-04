@@ -1,5 +1,12 @@
 const { google } = require('googleapis');
 
+// Helper: normalizar clave privada de Google (soporta \n escapados o saltos reales)
+function normalizePrivateKey(key) {
+  if (!key) return '';
+  // Si tiene \n como texto literal, convertir a saltos reales
+  return key.replace(/\\n/g, '\n').trim();
+}
+
 // Helper: obtener sheetId por nombre de hoja
 async function getSheetId(sheets, spreadsheetId, sheetName) {
   const res = await sheets.spreadsheets.get({ spreadsheetId });
@@ -9,12 +16,22 @@ async function getSheetId(sheets, spreadsheetId, sheetName) {
 
 async function syncSheets(datos, estado) {
   try {
+    const privateKey = normalizePrivateKey(process.env.GOOGLE_PRIVATE_KEY);
+    
+    if (!process.env.GOOGLE_CLIENT_EMAIL || !privateKey || !process.env.SHEET_ID) {
+      console.error('[SHEETS] ❌ Faltan variables de entorno de Google. Verifica GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY y SHEET_ID');
+      return;
+    }
+
+    console.log('[SHEETS] 🔑 Autenticando con Google...');
     const auth = new google.auth.JWT(
       process.env.GOOGLE_CLIENT_EMAIL,
       null,
-      process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      privateKey,
       ['https://www.googleapis.com/auth/spreadsheets']
     );
+    
+    console.log('[SHEETS] ✅ Autenticación JWT creada');
 
     const sheets = google.sheets({ version: 'v4', auth });
     const spreadsheetId = process.env.SHEET_ID;
@@ -264,7 +281,19 @@ async function syncSheets(datos, estado) {
     const logId = datos.idServicio || datos.idCierre || 'CierreDiario';
     console.log(`✅ Sheets sincronizado: ${logId}`);
   } catch (err) {
-    console.error('❌ Error sincronizando con Google Sheets:', err.message);
+    const errCode = err.code || 'UNKNOWN';
+    console.error(`❌ [SHEETS] Error ${errCode}:`, err.message);
+    
+    if (errCode === '401' || err.message?.includes('invalid_grant')) {
+      console.error('[SHEETS] 💡 Posible causa: GOOGLE_PRIVATE_KEY mal formateada. Asegúrate de que tenga saltos de línea (\\n)');
+    }
+    if (errCode === '403' || err.message?.includes('Permission denied')) {
+      console.error('[SHEETS] 💡 Posible causa: La hoja de Google no está compartida con la cuenta de servicio. Verifica los permisos.');
+    }
+    if (errCode === '404' || err.message?.includes('notFound')) {
+      console.error('[SHEETS] 💡 Posible causa: SHEET_ID incorrecto o la hoja no existe.');
+    }
+    
     const { logError } = require('./logger');
     logError({
       tipo: 'ERROR_SHEETS',
@@ -272,7 +301,7 @@ async function syncSheets(datos, estado) {
       metodo: 'SYNC',
       mensaje: err.message,
       stack: err.stack,
-      datos: { idServicio: datos.idServicio, estado }
+      datos: { idServicio: datos.idServicio, estado, errCode }
     });
   }
 }
