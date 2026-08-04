@@ -153,7 +153,6 @@ async function syncSheets(datos, estado) {
       datos.idServicio,
       fechaColombia,
       datos.placa,
-      datos.modelo || '',
       datos.tecnico,
       datos.diagnostico || '',
       txtRep,

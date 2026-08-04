@@ -267,8 +267,8 @@ async function main() {
 
   // ── 3. SERVICIOS ──
   const [serviciosRows] = await pool.execute(
-    `SELECT idServicio, fecha, placa, tecnico, detalle_repuestos, detalle_servicios,
-            total_repuestos, total_mano_obra, gran_total, estado
+    `SELECT idServicio, fecha, placa, tecnico, diagnostico, detalle_repuestos, detalle_servicios,
+            total_repuestos, total_mano_obra, gran_total, estado, comentarios, fecha_salida
      FROM servicios ORDER BY fecha`
   );
   const serviciosData = serviciosRows.map(r => [
@@ -276,17 +276,21 @@ async function main() {
     formatFechaColombia(r.fecha),
     r.placa || '',
     r.tecnico || '',
+    r.diagnostico || '',
     formatRepuestosField(r.detalle_repuestos),
     formatServiciosField(r.detalle_servicios),
     toNum(r.total_repuestos),
     toNum(r.total_mano_obra),
     toNum(r.gran_total),
-    r.estado || ''
+    r.estado || '',
+    r.comentarios || '',
+    formatFechaColombia(r.fecha_salida)
   ]);
   await writeSheet(sheets, 'Servicios', [
-    'ID_Servicio', 'Fecha_Ingreso', 'Placa', 'ID_Técnico',
+    'ID_Servicio', 'Fecha_Ingreso', 'Placa', 'ID_Técnico', 'Diagnóstico',
     'Detalle_Repuestos', 'Detalle_Servicios',
-    'Total_Repuestos', 'Total_Mano_Obra', 'Gran_Total', 'Estado'
+    'Total_Repuestos', 'Total_Mano_Obra', 'Gran_Total', 'Estado',
+    'Comentarios', 'Fecha_Salida'
   ], serviciosData);
 
   // ── 4. DETALLE_SERVICIOS ──

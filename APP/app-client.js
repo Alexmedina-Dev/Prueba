@@ -850,7 +850,7 @@ function nuevaOrden() {
         document.getElementById("cuerpoManoObra").innerHTML = '';
         document.getElementById("cuerpoTerceros").innerHTML = '';
         calcularTotalesGlobales();
-        const kmAnterior = res.vehiculo.kilometraje ? parseInt(res.vehiculo.kilometraje).toLocaleString('es-CO') : 'N/A';
+        const kmAnterior = res.vehiculo.kilometraje || 'N/A';
         document.getElementById('kilometraje-anterior').textContent = `Kilometraje anterior: ${kmAnterior}`;
         document.getElementById('info-vehiculo').innerText = "Cliente encontrado. Datos cargados. Complete la orden.";
       } else {
