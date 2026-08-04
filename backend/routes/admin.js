@@ -17,7 +17,7 @@ router.get('/logs', async (req, res, next) => {
     const params = [];
     if (tipo) { where.push('tipo = ?'); params.push(tipo); }
     if (ruta) { where.push('ruta LIKE ?'); params.push(`%${ruta}%`); }
-    if (ocultar_autofix === 'true') { where.push('(auto_fix IS NULL OR auto_fix = "")'); }
+    if (ocultar_autofix === 'true') { where.push("(auto_fix IS NULL OR auto_fix = '')"); }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
     const [rows] = await pool.query(
