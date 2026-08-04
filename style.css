@@ -276,10 +276,29 @@ img {
     font-size: 1.05rem;
     padding: 0 15px;
     height: 100%;
+    -webkit-text-fill-color: white;
 }
 
 .input-box input::placeholder {
     color: #555;
+}
+
+/* Override browser autofill white/yellow background */
+.input-box input:-webkit-autofill,
+.input-box input:-webkit-autofill:hover,
+.input-box input:-webkit-autofill:focus,
+.input-box input:-webkit-autofill:autofill {
+    -webkit-box-shadow: 0 0 0px 1000px rgba(15, 15, 15, 0.6) inset;
+    -webkit-text-fill-color: white !important;
+    -webkit-background-clip: text;
+    background-clip: text;
+    caret-color: white;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+.input-box:focus-within input:-webkit-autofill,
+.input-box:focus-within input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0px 1000px rgba(25, 25, 25, 0.8) inset;
 }
 
 .toggle-password {
