@@ -391,21 +391,31 @@ async function cargarMecanicos() {
     if (!res.ok) throw new Error('Error HTTP ' + res.status);
     const mecanicos = await res.json();
     
-    const select = document.getElementById('tecnico');
-    // Limpiar opciones actuales excepto la primera (placeholder)
-    while (select.options.length > 1) {
-      select.remove(1);
+    // Poblar select de técnico (orden de servicio)
+    const selectTecnico = document.getElementById('tecnico');
+    while (selectTecnico.options.length > 1) {
+      selectTecnico.remove(1);
     }
-    
-    // Agregar mecánicos desde la base de datos
     mecanicos.forEach(m => {
       const option = document.createElement('option');
       option.value = m.nombre;
       option.textContent = m.nombre;
-      select.appendChild(option);
+      selectTecnico.appendChild(option);
     });
     
-    console.log(`✅ ${mecanicos.length} mecánicos cargados desde la base de datos`);
+    // Poblar select de técnico para cierre diario
+    const selectCierre = document.getElementById('tecnicoCierre');
+    while (selectCierre.options.length > 1) {
+      selectCierre.remove(1);
+    }
+    mecanicos.forEach(m => {
+      const option = document.createElement('option');
+      option.value = m.nombre;
+      option.textContent = m.nombre;
+      selectCierre.appendChild(option);
+    });
+    
+    console.log(`✅ ${mecanicos.length} mecánicos cargados en ambos selects`);
   } catch (err) {
     console.error('Error cargando mecánicos:', err.message);
     // Si falla, mantener los mecánicos del HTML como fallback
@@ -840,6 +850,8 @@ function nuevaOrden() {
         document.getElementById("cuerpoManoObra").innerHTML = '';
         document.getElementById("cuerpoTerceros").innerHTML = '';
         calcularTotalesGlobales();
+        const kmAnterior = res.vehiculo.kilometraje ? parseInt(res.vehiculo.kilometraje).toLocaleString('es-CO') : 'N/A';
+        document.getElementById('kilometraje-anterior').textContent = `Kilometraje anterior: ${kmAnterior}`;
         document.getElementById('info-vehiculo').innerText = "Cliente encontrado. Datos cargados. Complete la orden.";
       } else {
         // Nuevo cliente → limpiar todo excepto placa
@@ -850,6 +862,7 @@ function nuevaOrden() {
         document.getElementById('correo').value = '';
         document.getElementById('modelo').value = '';
         document.getElementById('kilometraje').value = '';
+        document.getElementById('kilometraje-anterior').textContent = '';
         document.getElementById('tecnico').value = '';
         document.getElementById('diagnostico').value = '';
         document.getElementById('comentarios').value = '';

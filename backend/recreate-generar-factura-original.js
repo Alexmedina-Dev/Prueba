@@ -41,44 +41,39 @@ async function fixGenerarFactura() {
     sheetId = addRes.data.replies[0].addSheet.properties.sheetId;
   }
 
-  // 2. Plantilla con fórmulas que buscan el servicio ABIERTO
-  // Usamos FILTER para encontrar el servicio donde Placa=B2 AND Estado="Abierto"
-  // Si no hay abierto, busca el último servicio de esa placa
-  
-  const template = [
-    ['MOTOVERSO', ''],
-    ['Placa:', 'ABC123'],
-    ['Fecha Salida:',
-      '=IFERROR(TEXT(INDEX(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto"),1),"DD/MM/YYYY"),"")'],
-    ['Cliente:',
-      '=IFERROR(INDEX(\'Clientes\'!C:C,MATCH(INDEX(\'Vehículos\'!C:C,MATCH(B2,\'Vehículos\'!B:B,0)),\'Clientes\'!B:B,0)),"")'],
-    ['- - - - - - - - - - - - - - - - - - - - - - - - - - - - -', ''],
-    ['REPUESTOS:', ''],
-    ['repuestos_formula', ''],
-    ['', ''],
-    ['', ''],
-    ['', ''],
-    ['', ''],
-    ['SERVICIO:', ''],
-    ['servicios_formula', ''],
-    ['', ''],
-    ['- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -', ''],
-    ['TOTAL A PAGAR:', 'total_formula']
-  ];
+  // 2. Plantilla compacta — repuestos y servicios en UNA celda con salto de línea
+  // Row 1: MOTOVERSO (merge)
+  // Row 2: Placa: [B2]
+  // Row 3: Fecha Salida: [fórmula]
+  // Row 4: Cliente: [fórmula]
+  // Row 5: Separador
+  // Row 6: REPUESTOS: | [contenido en B6]
+  // Row 7: SERVICIO: | [contenido en B7]
+  // Row 8: Separador
+  // Row 9: TOTAL A PAGAR: | [total en B9]
 
   // Fórmulas con FILTER para servicio abierto
   const repuestosFormula = '=IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),"Sin repuestos")';
   const serviciosFormula = '=IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),"Sin servicios")';
+  const fechaFormula = '=IFERROR(TEXT(INDEX(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto"),1),"DD/MM/YYYY"),"")';
+  const clienteFormula = '=IFERROR(INDEX(\'Clientes\'!C:C,MATCH(INDEX(\'Vehículos\'!C:C,MATCH(B2,\'Vehículos\'!B:B,0)),\'Clientes\'!B:B,0)),"")';
   const totalFormula = '=IFERROR(SUM(FILTER(\'Servicios\'!J:J,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),0)';
 
-  // Reemplazar placeholders
-  template[6][0] = repuestosFormula;
-  template[12][0] = serviciosFormula;
-  template[15][1] = totalFormula;
+  const template = [
+    ['MOTOVERSO', ''],
+    ['Placa:', 'ABC123'],
+    ['Fecha Salida:', fechaFormula],
+    ['Cliente:', clienteFormula],
+    ['- - - - - - - - - - - - - - - - - - - - - - - - - - - - -', ''],
+    ['REPUESTOS:', repuestosFormula],
+    ['SERVICIO:', serviciosFormula],
+    ['- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -', ''],
+    ['TOTAL A PAGAR:', totalFormula]
+  ];
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
-    range: "'GENERAR FACTURA'!A1:B16",
+    range: "'GENERAR FACTURA'!A1:B9",
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: template }
   });
@@ -126,7 +121,7 @@ async function fixGenerarFactura() {
             right: { style: 'SOLID', width: 1 }
           }
         },
-        // REPUESTOS header bold
+        // REPUESTOS label bold + wrap text en B6
         {
           repeatCell: {
             range: { sheetId, startRowIndex: 5, endRowIndex: 6, startColumnIndex: 0, endColumnIndex: 1 },
@@ -134,35 +129,52 @@ async function fixGenerarFactura() {
             fields: 'userEnteredFormat.textFormat'
           }
         },
-        // SERVICIO header bold
         {
           repeatCell: {
-            range: { sheetId, startRowIndex: 11, endRowIndex: 12, startColumnIndex: 0, endColumnIndex: 1 },
+            range: { sheetId, startRowIndex: 5, endRowIndex: 6, startColumnIndex: 1, endColumnIndex: 2 },
+            cell: { userEnteredFormat: { wrapStrategy: 'WRAP' } },
+            fields: 'userEnteredFormat.wrapStrategy'
+          }
+        },
+        // SERVICIO label bold + wrap text en B7
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 6, endRowIndex: 7, startColumnIndex: 0, endColumnIndex: 1 },
             cell: { userEnteredFormat: { textFormat: { bold: true } } },
             fields: 'userEnteredFormat.textFormat'
+          }
+        },
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 6, endRowIndex: 7, startColumnIndex: 1, endColumnIndex: 2 },
+            cell: { userEnteredFormat: { wrapStrategy: 'WRAP' } },
+            fields: 'userEnteredFormat.wrapStrategy'
           }
         },
         // TOTAL A PAGAR bold
         {
           repeatCell: {
-            range: { sheetId, startRowIndex: 15, endRowIndex: 16, startColumnIndex: 0, endColumnIndex: 2 },
+            range: { sheetId, startRowIndex: 8, endRowIndex: 9, startColumnIndex: 0, endColumnIndex: 2 },
             cell: { userEnteredFormat: { textFormat: { bold: true } } },
             fields: 'userEnteredFormat.textFormat'
           }
-        },
-        // Alturas para multi-línea
-        { updateDimensionProperties: { range: { sheetId, dimension: 'ROWS', startIndex: 6, endIndex: 7 }, properties: { pixelSize: 120 }, fields: 'pixelSize' } },
-        { updateDimensionProperties: { range: { sheetId, dimension: 'ROWS', startIndex: 12, endIndex: 13 }, properties: { pixelSize: 80 }, fields: 'pixelSize' } }
+        }
       ]
     }
   });
 
-  console.log('✅ GENERAR FACTURA actualizado - busca servicio ABIERTO');
+  console.log('✅ GENERAR FACTURA actualizado - layout compacto con auto-altura');
   console.log('');
-  console.log('INSTRUCCIONES:');
-  console.log('1. Abrí la pestaña "GENERAR FACTURA"');
-  console.log('2. Cambiá la celda B2 por cualquier placa');
-  console.log('3. Ahora muestra el servicio ABIERTO, no el cerrado');
+  console.log('ESTRUCTURA:');
+  console.log('Fila 1: MOTOVERSO (título centrado)');
+  console.log('Fila 2: Placa: [input]');
+  console.log('Fila 3: Fecha Salida: [automático]');
+  console.log('Fila 4: Cliente: [automático]');
+  console.log('Fila 5: Separador');
+  console.log('Fila 6: REPUESTOS: [contenido con wrap]');
+  console.log('Fila 7: SERVICIO: [contenido con wrap]');
+  console.log('Fila 8: Separador');
+  console.log('Fila 9: TOTAL A PAGAR: [automático]');
 }
 
 fixGenerarFactura().catch(err => {

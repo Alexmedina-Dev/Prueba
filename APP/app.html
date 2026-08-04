@@ -964,7 +964,7 @@
       </div>
       <div class="form-group"><label>Marca y Modelo: <span style="color:#c00;">*</span></label><input type="text"
           id="modelo"></div>
-      <div class="form-group"><label>Kilometraje:</label><input type="number" id="kilometraje" placeholder="Ej: 24500" min="0"></div>
+      <div class="form-group"><label>Kilometraje:</label><input type="number" id="kilometraje" placeholder="Ej: 24500" min="0"><small id="kilometraje-anterior" style="color:#666; display:block; margin-top:2px;"></small></div>
     </div>
 
     <hr style="margin: 15px 0; border-top: 1px solid #eee;">
@@ -973,14 +973,6 @@
       <div style="display:flex; gap:8px; align-items:center;">
         <select id="tecnico" style="flex:1;">
           <option value="" disabled selected>Selecciona un técnico...</option>
-          <option value="Andres">Andres</option>
-          <option value="Brayan">Brayan</option>
-          <option value="Yeison">Yeison</option>
-          <option value="Harold">Harold</option>
-          <option value="Dairon">Dairon</option>
-          <option value="Johan">Johan</option>
-          <option value="Alexander">Alexander</option>
-          <option value="Mauricio">Mauricio</option>
         </select>
         <div id="admin-mecanicos" style="display:none; gap:4px;">
           <input type="text" id="nuevoMecanico" placeholder="Nombre" style="width:100px; padding:6px; border:1px solid #ddd; border-radius:4px;">
@@ -1074,14 +1066,7 @@
     <div class="form-row">
       <input type="date" id="fechaCierre" style="flex:1;">
       <select id="tecnicoCierre" style="flex:1;">
-        <option value="Andres">Andres</option>
-        <option value="Brayan">Brayan</option>
-        <option value="Yeison">Yeison</option>
-        <option value="Harold">Harold</option>
-        <option value="Dairon">Dairon</option>
-        <option value="Johan">Johan</option>
-        <option value="Alexander">Alexander</option>
-        <option value="Mauricio">Mauricio</option>
+        <option value="" disabled selected>Selecciona un técnico...</option>
       </select>
       <button class="action-btn" style="background-color: #1565c0; width:auto; padding: 12px 24px;"
         onclick="ejecutarCierre()">Generar</button>
