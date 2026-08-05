@@ -1,7 +1,13 @@
 let colaOcupada = false;
 const cola = [];
+const MAX_COLA_SIZE = 50; // Límite para evitar memory leaks
 
 function encolarSync(syncFn, datos, estado) {
+  // Si la cola está llena, descartar el sync más antiguo
+  if (cola.length >= MAX_COLA_SIZE) {
+    console.warn('[Sheets Queue] ⚠️ Cola llena, descartando sync más antiguo');
+    cola.shift();
+  }
   cola.push({ syncFn, datos, estado });
   procesarCola();
 }

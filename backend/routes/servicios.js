@@ -5,58 +5,69 @@ const auth = require('../middleware/auth');
 const syncSheets = require('../utils/sync-sheets');
 const { encolarSync } = require('../utils/sheets-queue');
 const { logError } = require('../utils/logger');
+const { validateGuardarServicio } = require('../validators/servicioSchema');
+
+// ── Función compartida para obtener servicios abiertos ─────
+// Evita duplicación entre /abiertos y /pendientes
+async function obtenerServiciosAbiertos({ incluirDetalle = true, ordenarDesc = true, incluirDias = false } = {}) {
+  const selectExtra = incluirDias ? ', DATEDIFF(NOW(), s.fecha) AS dias_abierto' : '';
+  const selectDetalle = incluirDetalle 
+    ? 's.id, s.detalle_repuestos, s.detalle_servicios, s.fecha_salida, s.lockedBy, s.lockedAt, c.telefono AS telefono, c.correo AS correo' 
+    : 's.idServicio, DATEDIFF(NOW(), s.fecha) AS dias_abierto';
+  const orderBy = ordenarDesc ? 'ORDER BY s.fecha DESC' : 'ORDER BY s.fecha ASC';
+
+  const [rows] = await pool.execute(`
+    SELECT
+      s.idServicio, s.fecha, s.placa, s.tecnico,
+      s.diagnostico, s.total_repuestos, s.total_mano_obra, s.gran_total,
+      s.estado, s.comentarios,
+      ${incluirDetalle ? 's.id, s.detalle_repuestos, s.detalle_servicios, s.fecha_salida, s.lockedBy, s.lockedAt,' : 'DATEDIFF(NOW(), s.fecha) AS dias_abierto,'}
+      v.idServicio AS vehiculo_idServicio, v.modelo, v.kilometraje,
+      c.idServicio AS cliente_idServicio, c.nombre AS nombre, c.cedula
+      ${incluirDetalle ? ', c.telefono AS telefono, c.correo AS correo' : ''}
+    FROM servicios s
+    LEFT JOIN vehiculos v ON s.placa = v.placa
+    LEFT JOIN clientes c ON v.cedula_cliente = c.cedula
+    WHERE s.estado = 'Abierto'
+    ${orderBy}
+  `);
+
+  // Obtener items de detalle_servicios solo si se solicita
+  if (incluirDetalle && rows.length > 0) {
+    const ids = rows.map(r => r.idServicio);
+    const placeholders = ids.map(() => '?').join(',');
+    const [items] = await pool.execute(`
+      SELECT idServicio, tipo, codigo, descripcion, cantidad, precio_unitario, subtotal as total
+      FROM detalle_servicios
+      WHERE idServicio IN (${placeholders})
+      ORDER BY id
+    `, ids);
+
+    const itemsMap = {};
+    for (const item of items) {
+      if (!itemsMap[item.idServicio]) itemsMap[item.idServicio] = [];
+      itemsMap[item.idServicio].push({
+        tipo: item.tipo,
+        codigo: item.codigo,
+        desc: item.descripcion,
+        cant: item.cantidad,
+        precio: item.precio_unitario,
+        total: item.total
+      });
+    }
+
+    for (const row of rows) {
+      row.items = itemsMap[row.idServicio] || [];
+    }
+  }
+
+  return rows;
+}
 
 // GET /api/servicios/abiertos
 router.get('/abiertos', auth, async (req, res) => {
   try {
-    // 1. Obtener servicios abiertos
-    const [rows] = await pool.execute(`
-      SELECT
-        s.id, s.idServicio, s.fecha, s.placa, s.tecnico,
-        s.diagnostico, s.detalle_repuestos, s.detalle_servicios,
-        s.total_repuestos, s.total_mano_obra, s.gran_total,
-        s.estado, s.comentarios, s.fecha_salida,
-        s.lockedBy, s.lockedAt,
-        v.idServicio AS vehiculo_idServicio, v.modelo, v.kilometraje,
-        c.idServicio AS cliente_idServicio, c.nombre AS nombre, c.telefono AS telefono, c.correo AS correo, c.cedula
-      FROM servicios s
-      LEFT JOIN vehiculos v ON s.placa = v.placa
-      LEFT JOIN clientes c ON v.cedula_cliente = c.cedula
-      WHERE s.estado = 'Abierto'
-      ORDER BY s.fecha DESC
-    `);
-
-    // 2. Obtener items de detalle_servicios para cada servicio
-    if (rows.length > 0) {
-      const ids = rows.map(r => r.idServicio);
-      const placeholders = ids.map(() => '?').join(',');
-      const [items] = await pool.execute(`
-        SELECT idServicio, tipo, codigo, descripcion, cantidad, precio_unitario, subtotal as total
-        FROM detalle_servicios
-        WHERE idServicio IN (${placeholders})
-        ORDER BY id
-      `, ids);
-
-      // Agrupar items por idServicio
-      const itemsMap = {};
-      for (const item of items) {
-        if (!itemsMap[item.idServicio]) itemsMap[item.idServicio] = [];
-        itemsMap[item.idServicio].push({
-          tipo: item.tipo,
-          codigo: item.codigo,
-          desc: item.descripcion,
-          cant: item.cantidad,
-          precio: item.precio_unitario,
-          total: item.total
-        });
-      }
-
-      // Asignar items a cada servicio
-      for (const row of rows) {
-        row.items = itemsMap[row.idServicio] || [];
-      }
-    }
-
+    const rows = await obtenerServiciosAbiertos({ incluirDetalle: true, ordenarDesc: true });
     res.json(rows);
   } catch (e) {
     logError({
@@ -74,21 +85,7 @@ router.get('/abiertos', auth, async (req, res) => {
 // GET /api/servicios/pendientes — servicios abiertos con días de antigüedad para panel
 router.get('/pendientes', auth, async (req, res) => {
   try {
-    const [rows] = await pool.execute(`
-      SELECT
-        s.idServicio, s.fecha, s.placa, s.tecnico,
-        s.diagnostico, s.total_repuestos, s.total_mano_obra, s.gran_total,
-        s.estado, s.comentarios,
-        v.idServicio AS vehiculo_idServicio, v.modelo, v.kilometraje,
-        c.idServicio AS cliente_idServicio, c.nombre AS nombre, c.cedula,
-        DATEDIFF(NOW(), s.fecha) AS dias_abierto
-      FROM servicios s
-      LEFT JOIN vehiculos v ON s.placa = v.placa
-      LEFT JOIN clientes c ON v.cedula_cliente = c.cedula
-      WHERE s.estado = 'Abierto'
-      ORDER BY s.fecha ASC
-    `);
-
+    const rows = await obtenerServiciosAbiertos({ incluirDetalle: false, ordenarDesc: false });
     res.json(rows);
   } catch (e) {
     logError({
@@ -205,15 +202,178 @@ router.post('/buscar-placa', auth, async (req, res) => {
   }
 });
 
+// ── Funciones auxiliares para guardarServicio ──────────────
+// Separadas para cumplir SRP y facilitar testing
+
+function calcularTotales(detalle_servicios) {
+  let calc_total_repuestos = 0;
+  let calc_total_mano_obra = 0;
+
+  if (detalle_servicios && Array.isArray(detalle_servicios)) {
+    for (const d of detalle_servicios) {
+      const subtotal = (d.cantidad || 0) * (d.precio_unitario || 0);
+      if (d.tipo === 'Repuesto') {
+        calc_total_repuestos += subtotal;
+      } else if (d.tipo === 'Mano de Obra') {
+        calc_total_mano_obra += subtotal;
+      }
+    }
+  }
+
+  return {
+    calc_total_repuestos,
+    calc_total_mano_obra,
+    calc_gran_total: calc_total_repuestos + calc_total_mano_obra
+  };
+}
+
+async function upsertCliente(conn, idServicio, cedula, nombre, telefono, correo) {
+  await conn.execute(`
+    INSERT INTO clientes (idServicio, cedula, nombre, telefono, correo)
+    VALUES (?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      idServicio = VALUES(idServicio),
+      nombre = VALUES(nombre),
+      telefono = VALUES(telefono),
+      correo = VALUES(correo)
+  `, [idServicio, cedula, nombre, telefono, correo]);
+}
+
+async function upsertVehiculo(conn, idServicio, placa, cedula, modelo, kilometraje) {
+  await conn.execute(`
+    INSERT INTO vehiculos (idServicio, placa, cedula_cliente, modelo, kilometraje)
+    VALUES (?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      idServicio = VALUES(idServicio),
+      cedula_cliente = VALUES(cedula_cliente),
+      modelo = VALUES(modelo),
+      kilometraje = VALUES(kilometraje)
+  `, [idServicio, placa, cedula, modelo, kilometraje]);
+}
+
+async function upsertServicio(conn, params) {
+  const {
+    idServicio, nuevoId, placa, tecnico, diagnostico,
+    detalle_repuestos, detalle_servicios,
+    calc_total_repuestos, calc_total_mano_obra, calc_gran_total,
+    estado, comentarios
+  } = params;
+
+  const servicioId = idServicio || nuevoId;
+  const esCerrado = estado === 'Cerrado';
+
+  if (idServicio) {
+    // Verificar si ya existe
+    const [existing] = await conn.execute(
+      'SELECT id FROM servicios WHERE idServicio = ?', [idServicio]
+    );
+
+    if (existing.length > 0) {
+      // UPDATE
+      if (esCerrado) {
+        await conn.execute(`
+          UPDATE servicios SET
+            placa=?, tecnico=?, diagnostico=?,
+            detalle_repuestos=?, detalle_servicios=?,
+            total_repuestos=?, total_mano_obra=?, gran_total=?,
+            estado=?, comentarios=?, fecha_salida=NOW(),
+            lockedBy=NULL, lockedAt=NULL
+          WHERE idServicio=?
+        `, [placa, tecnico, diagnostico,
+            JSON.stringify(detalle_repuestos), JSON.stringify(detalle_servicios),
+            calc_total_repuestos, calc_total_mano_obra, calc_gran_total,
+            estado, comentarios, idServicio]);
+      } else {
+        await conn.execute(`
+          UPDATE servicios SET
+            placa=?, tecnico=?, diagnostico=?,
+            detalle_repuestos=?, detalle_servicios=?,
+            total_repuestos=?, total_mano_obra=?, gran_total=?,
+            estado=?, comentarios=?
+          WHERE idServicio=?
+        `, [placa, tecnico, diagnostico,
+            JSON.stringify(detalle_repuestos), JSON.stringify(detalle_servicios),
+            calc_total_repuestos, calc_total_mano_obra, calc_gran_total,
+            estado, comentarios, idServicio]);
+      }
+    } else {
+      // INSERT con ID proporcionado
+      if (esCerrado) {
+        await conn.execute(`
+          INSERT INTO servicios
+            (idServicio, fecha, placa, tecnico, diagnostico,
+             detalle_repuestos, detalle_servicios,
+             total_repuestos, total_mano_obra, gran_total,
+             estado, comentarios, fecha_salida)
+          VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        `, [idServicio, placa, tecnico, diagnostico,
+            JSON.stringify(detalle_repuestos), JSON.stringify(detalle_servicios),
+            calc_total_repuestos, calc_total_mano_obra, calc_gran_total,
+            estado, comentarios]);
+      } else {
+        await conn.execute(`
+          INSERT INTO servicios
+            (idServicio, fecha, placa, tecnico, diagnostico,
+             detalle_repuestos, detalle_servicios,
+             total_repuestos, total_mano_obra, gran_total,
+             estado, comentarios)
+          VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [idServicio, placa, tecnico, diagnostico,
+            JSON.stringify(detalle_repuestos), JSON.stringify(detalle_servicios),
+            calc_total_repuestos, calc_total_mano_obra, calc_gran_total,
+            estado, comentarios]);
+      }
+    }
+  } else {
+    // INSERT con nuevoId generado
+    if (esCerrado) {
+      await conn.execute(`
+        INSERT INTO servicios
+          (idServicio, fecha, placa, tecnico, diagnostico,
+           detalle_repuestos, detalle_servicios,
+           total_repuestos, total_mano_obra, gran_total,
+           estado, comentarios, fecha_salida)
+        VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      `, [nuevoId, placa, tecnico, diagnostico,
+          JSON.stringify(detalle_repuestos), JSON.stringify(detalle_servicios),
+          calc_total_repuestos, calc_total_mano_obra, calc_gran_total,
+          estado, comentarios]);
+    } else {
+      await conn.execute(`
+        INSERT INTO servicios
+          (idServicio, fecha, placa, tecnico, diagnostico,
+           detalle_repuestos, detalle_servicios,
+           total_repuestos, total_mano_obra, gran_total,
+           estado, comentarios)
+        VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [nuevoId, placa, tecnico, diagnostico,
+          JSON.stringify(detalle_repuestos), JSON.stringify(detalle_servicios),
+          calc_total_repuestos, calc_total_mano_obra, calc_gran_total,
+          estado, comentarios]);
+    }
+  }
+}
+
+async function syncDetalleServicios(conn, idServicio, detalle_servicios) {
+  if (!detalle_servicios || !Array.isArray(detalle_servicios)) return;
+
+  await conn.execute('DELETE FROM detalle_servicios WHERE idServicio=?', [idServicio]);
+
+  for (const d of detalle_servicios) {
+    const subtotal = (d.cantidad || 0) * (d.precio_unitario || 0);
+    await conn.execute(`
+      INSERT INTO detalle_servicios
+        (idServicio, tipo, codigo, descripcion, cantidad, precio_unitario, subtotal)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [idServicio, d.tipo, d.codigo, d.descripcion, d.cantidad, d.precio_unitario, subtotal]);
+  }
+}
+
 // POST /api/servicios/guardar
-router.post('/guardar', auth, async (req, res) => {
+router.post('/guardar', auth, validateGuardarServicio, async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-
-    // DEBUG: Verificar qué llega del frontend
-    console.log('BACKEND DEBUG - req.body.kilometraje:', req.body.kilometraje, 'tipo:', typeof req.body.kilometraje);
-    console.log('BACKEND DEBUG - req.body keys:', Object.keys(req.body).filter(k => k.includes('kilom')));
 
     const {
       idServicio, cedula, nombre_cliente, telefono, correo,
@@ -223,7 +383,7 @@ router.post('/guardar', auth, async (req, res) => {
       estado, comentarios
     } = req.body;
 
-    // Pre-generar ID para nuevos servicios (ANTES de insertar cliente/vehículo)
+    // Pre-generar ID para nuevos servicios
     let nuevoId = null;
     if (!idServicio) {
       nuevoId = `SRV-${Date.now()}`;
@@ -244,159 +404,30 @@ router.post('/guardar', auth, async (req, res) => {
       }
     }
 
-    // 1. Upsert cliente (con targetId - ya sea idServicio existente o nuevoId generado)
-    await conn.execute(`
-      INSERT INTO clientes (idServicio, cedula, nombre, telefono, correo)
-      VALUES (?, ?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-        idServicio = VALUES(idServicio),
-        nombre = VALUES(nombre),
-        telefono = VALUES(telefono),
-        correo = VALUES(correo)
-    `, [targetId, cedula, nombre_cliente, telefono, correo]);
+    // 1. Upsert cliente
+    await upsertCliente(conn, targetId, cedula, nombre_cliente, telefono, correo);
 
-    // 2. Upsert vehículo (con targetId - ya sea idServicio existente o nuevoId generado)
-    await conn.execute(`
-      INSERT INTO vehiculos (idServicio, placa, cedula_cliente, modelo, kilometraje)
-      VALUES (?, ?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-        idServicio = VALUES(idServicio),
-        cedula_cliente = VALUES(cedula_cliente),
-        modelo = VALUES(modelo),
-        kilometraje = VALUES(kilometraje)
-    `, [targetId, placa, cedula, modelo, req.body.kilometraje || null]);
+    // 2. Upsert vehículo
+    await upsertVehiculo(conn, targetId, placa, cedula, modelo, req.body.kilometraje || null);
 
     // 3. Calcular totales desde detalle_servicios
-    let calc_total_repuestos = 0;
-    let calc_total_mano_obra = 0;
+    const { calc_total_repuestos, calc_total_mano_obra, calc_gran_total } = calcularTotales(detalle_servicios);
 
-    if (detalle_servicios && Array.isArray(detalle_servicios)) {
-      for (const d of detalle_servicios) {
-        const subtotal = (d.cantidad || 0) * (d.precio_unitario || 0);
-        if (d.tipo === 'Repuesto') {
-          calc_total_repuestos += subtotal;
-        } else if (d.tipo === 'Mano de Obra') {
-          calc_total_mano_obra += subtotal;
-        }
-      }
-    }
+    // 4. Upsert servicio
+    await upsertServicio(conn, {
+      idServicio, nuevoId, placa, tecnico, diagnostico,
+      detalle_repuestos, detalle_servicios,
+      calc_total_repuestos, calc_total_mano_obra, calc_gran_total,
+      estado, comentarios
+    });
 
-    const calc_gran_total = calc_total_repuestos + calc_total_mano_obra;
-
-    // 4. Determine fecha_salida
-    const fechaSalida = (estado === 'Cerrado') ? 'NOW()' : null;
-
-    // 5. Insert or update servicio
-    // NOTA: nuevoId ya fue generado arriba si es un servicio nuevo
-    if (idServicio) {
-      // Verificar si ya existe
-      const [existing] = await conn.execute(
-        'SELECT id FROM servicios WHERE idServicio = ?', [idServicio]
-      );
-
-      if (existing.length > 0) {
-        if (estado === 'Cerrado' && fechaSalida) {
-          await conn.execute(`
-            UPDATE servicios SET
-              placa=?, tecnico=?, diagnostico=?,
-              detalle_repuestos=?, detalle_servicios=?,
-              total_repuestos=?, total_mano_obra=?, gran_total=?,
-              estado=?, comentarios=?, fecha_salida=NOW(),
-              lockedBy=NULL, lockedAt=NULL
-            WHERE idServicio=?
-          `, [placa, tecnico, diagnostico,
-              JSON.stringify(detalle_repuestos), JSON.stringify(detalle_servicios),
-              calc_total_repuestos, calc_total_mano_obra, calc_gran_total,
-              estado, comentarios, idServicio]);
-        } else {
-          await conn.execute(`
-            UPDATE servicios SET
-              placa=?, tecnico=?, diagnostico=?,
-              detalle_repuestos=?, detalle_servicios=?,
-              total_repuestos=?, total_mano_obra=?, gran_total=?,
-              estado=?, comentarios=?
-            WHERE idServicio=?
-          `, [placa, tecnico, diagnostico,
-              JSON.stringify(detalle_repuestos), JSON.stringify(detalle_servicios),
-              calc_total_repuestos, calc_total_mano_obra, calc_gran_total,
-              estado, comentarios, idServicio]);
-        }
-      } else {
-        // idServicio provided but doesn't exist in DB — insert with that ID
-        nuevoId = idServicio;
-        if (estado === 'Cerrado' && fechaSalida) {
-          await conn.execute(`
-            INSERT INTO servicios
-              (idServicio, fecha, placa, tecnico, diagnostico,
-               detalle_repuestos, detalle_servicios,
-               total_repuestos, total_mano_obra, gran_total,
-               estado, comentarios, fecha_salida)
-            VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-          `, [idServicio, placa, tecnico, diagnostico,
-              JSON.stringify(detalle_repuestos), JSON.stringify(detalle_servicios),
-              calc_total_repuestos, calc_total_mano_obra, calc_gran_total,
-              estado, comentarios]);
-        } else {
-          await conn.execute(`
-            INSERT INTO servicios
-              (idServicio, fecha, placa, tecnico, diagnostico,
-               detalle_repuestos, detalle_servicios,
-               total_repuestos, total_mano_obra, gran_total,
-               estado, comentarios)
-            VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `, [idServicio, placa, tecnico, diagnostico,
-              JSON.stringify(detalle_repuestos), JSON.stringify(detalle_servicios),
-              calc_total_repuestos, calc_total_mano_obra, calc_gran_total,
-              estado, comentarios]);
-        }
-      }
-    } else {
-      // Usar nuevoId ya generado arriba (mismo ID usado para cliente/vehículo)
-      if (estado === 'Cerrado' && fechaSalida) {
-        await conn.execute(`
-          INSERT INTO servicios
-            (idServicio, fecha, placa, tecnico, diagnostico,
-             detalle_repuestos, detalle_servicios,
-             total_repuestos, total_mano_obra, gran_total,
-             estado, comentarios, fecha_salida)
-          VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-        `, [nuevoId, placa, tecnico, diagnostico,
-            JSON.stringify(detalle_repuestos), JSON.stringify(detalle_servicios),
-            calc_total_repuestos, calc_total_mano_obra, calc_gran_total,
-            estado, comentarios]);
-      } else {
-        await conn.execute(`
-          INSERT INTO servicios
-            (idServicio, fecha, placa, tecnico, diagnostico,
-             detalle_repuestos, detalle_servicios,
-             total_repuestos, total_mano_obra, gran_total,
-             estado, comentarios)
-          VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [nuevoId, placa, tecnico, diagnostico,
-            JSON.stringify(detalle_repuestos), JSON.stringify(detalle_servicios),
-            calc_total_repuestos, calc_total_mano_obra, calc_gran_total,
-            estado, comentarios]);
-      }
-    }
-
-    // 6. Delete + Insert detalle_servicios
-    // targetId ya está definido arriba
-    if (detalle_servicios && Array.isArray(detalle_servicios)) {
-      await conn.execute('DELETE FROM detalle_servicios WHERE idServicio=?', [targetId]);
-
-      for (const d of detalle_servicios) {
-        const subtotal = (d.cantidad || 0) * (d.precio_unitario || 0);
-        await conn.execute(`
-          INSERT INTO detalle_servicios
-            (idServicio, tipo, codigo, descripcion, cantidad, precio_unitario, subtotal)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `, [targetId, d.tipo, d.codigo, d.descripcion, d.cantidad, d.precio_unitario, subtotal]);
-      }
-    }
+    // 5. Sync detalle_servicios
+    const servicioId = idServicio || nuevoId;
+    await syncDetalleServicios(conn, servicioId, detalle_servicios);
 
     await conn.commit();
 
-    // 7. Sync Google Sheets (fuera de transacción, si falla no revierte)
+    // 6. Sync Google Sheets (fuera de transacción, si falla no revierte)
     const syncId = idServicio || nuevoId;
     const datosSheets = {
       idServicio: syncId,

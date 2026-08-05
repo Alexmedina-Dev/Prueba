@@ -1,0 +1,8 @@
+repuestoshannasmotos@gmail.com | Nury Hern├índez | $2a$10$tmfPGdBPHThPFRf.2d.A9eyhlMzGXent9QxDOmPXLGCHcN8BofRBa... | role=admin | caja=1
+alexandermedi53h@gmail.com | Alex Medina | $2a$10$RBgNGetz8tnujSHmpMDY/euSLDlOiyj4L8/YwINPx6CgSS6AxmuQ.... | role=developer | caja=1
+motoversotaller@gmail.com | Don Mauricio | $2a$10$9uRtkAnPpGK74/dgHChYkuwYZ3GtRkD.C6nQeBjOB2XvccTbmCtgC... | role=operador | caja=1
+ana@motoverso.com | Ana Najar | $2a$10$ROrxFBmGLnNInKN/KyNlHemLLk5D5qty.EDzXyTj7op94k7YbWWDG... | role=operador | caja=0
+steven@motoverso.com | Steven | $2a$10$KU.Op8LdJbcO9l9OGeKCkuptc11kD8d/olNxwecb78VtMooW0P1PK... | role=operador | caja=0
+erika@motoverso.com | Erika | $2a$10$N8n8bm8YE8OV7vVJ4RXuDehowWbueMWHZWQtBEPwYNOq1IX/olLxO... | role=operador | caja=0
+hanna@motoverso.com | Hanna | $2a$10$v8ptuue6EKx6U6bqjUSmmeEDWrboD.E/Wih75ryTpMXxIe1QTysaa... | role=operador | caja=0
+cecilia@motoverso.com | Cecilia | $2a$10$fynbViiQqmtUhNtpfPXZWuEOb5M8bHX8HYdV29o323u4YfaU3hftO... | role=operador | caja=0

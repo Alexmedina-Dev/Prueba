@@ -26,32 +26,27 @@ async function restoreDesign() {
     sheetId = addRes.data.replies[0].addSheet.properties.sheetId;
   }
 
-  // Helper: fórmulas que buscan por placa (B2) — funcionan con Abierto O Cerrado
+  // Helper: fórmulas
   const f = {
-    // Fecha: primer intento con "Abierto", fallback al más reciente sin filtro de estado
     fecha: '=IFERROR(LEFT(INDEX(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto"),1),FIND(",",INDEX(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto"),1))-1),IFERROR(LEFT(INDEX(SORT(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2),1,FALSE),1),FIND(",",INDEX(SORT(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2),1,FALSE),1))-1),""))',
-    // Cliente: lookup Vehículos → Clientes (no depende de estado)
     cliente: '=IFERROR(INDEX(\'Clientes\'!C:C,MATCH(INDEX(\'Vehículos\'!C:C,MATCH(B2,\'Vehículos\'!B:B,0)),\'Clientes\'!B:B,0)),"")',
-    // Repuestos: busca por placa SIN filtrar por estado (funciona Abierto/Cerrado)
-    hayRep: '=IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2,\'Servicios\'!F:F<>"")),"")',
-    // Servicios: busca por placa SIN filtrar por estado
-    haySrv: '=IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2,\'Servicios\'!G:G<>"")),"")',
-    // Total: suma gran_total por placa SIN filtrar por estado
-    total: '=IFERROR(SUM(FILTER(\'Servicios\'!J:J,\'Servicios\'!C:C=B2,\'Servicios\'!J:J<>0)),0)'
+    hayRep: '=IF(COUNTIFS(Servicios!C:C,B2,Servicios!F:F,CHAR(60)&CHAR(62))>0,INDEX(Servicios!F:F,MAX(FILTER(ROW(Servicios!C2:C5000),Servicios!C2:C5000=B2))),"")',
+    haySrv: '=IF(COUNTIFS(Servicios!C:C,B2,Servicios!G:G,CHAR(60)&CHAR(62))>0,INDEX(Servicios!G:G,MAX(FILTER(ROW(Servicios!C2:C5000),Servicios!C2:C5000=B2))),"")',
+    total: '=IF(COUNTIFS(Servicios!C:C,B2,Servicios!J:J,CHAR(60)&CHAR(62)&"0")>0,INDEX(Servicios!J:J,MAX(FILTER(ROW(Servicios!C2:C5000),Servicios!C2:C5000=B2))),0)'
   };
 
-  // Compacto: solo filas necesarias, headers condicionales
+  // Paso 1: Escriir datos estáticos
   const template = [
-    ['MOTOVERSO', ''],               // 0 -> fila 1
-    ['Placa:', 'ABC123'],             // 1 -> fila 2
-    ['Fecha Salida:', f.fecha],       // 2 -> fila 3
-    ['Cliente:', f.cliente],          // 3 -> fila 4
-    ['REPUESTOS:', ''],               // 4 -> fila 5 (label siempre visible)
-    [f.hayRep, ''],                   // 5 -> fila 6 (vacía si no hay datos)
-    ['SERVICIO:', ''],                // 6 -> fila 7 (label siempre visible)
-    [f.haySrv, ''],                   // 7 -> fila 8 (vacía si no hay datos)
-    ['', ''],                          // 8 -> fila 9 (respiro)
-    ['TOTAL A PAGAR:', f.total]       // 9 -> fila 10
+    ['MOTOVERSO', ''],
+    ['Placa:', 'ABC123'],
+    ['Fecha Salida:', f.fecha],
+    ['Cliente:', f.cliente],
+    ['REPUESTOS:', ''],
+    ['', ''],  // B6 se llena después
+    ['SERVICIO:', ''],
+    ['', ''],  // B8 se llena después
+    ['', ''],
+    ['TOTAL A PAGAR:', '']  // B10 se llena después
   ];
 
   await sheets.spreadsheets.values.update({
@@ -61,40 +56,46 @@ async function restoreDesign() {
     requestBody: { values: template }
   });
 
+  // Paso 2: Escriir fórmulas por separado (una por una)
+  const formulaCells = [
+    { cell: 'GENERAR FACTURA!B3', formula: f.fecha },
+    { cell: 'GENERAR FACTURA!B4', formula: f.cliente },
+    { cell: 'GENERAR FACTURA!B6', formula: f.hayRep },
+    { cell: 'GENERAR FACTURA!B8', formula: f.haySrv },
+    { cell: 'GENERAR FACTURA!B10', formula: f.total }
+  ];
+
+  for (const { cell, formula } of formulaCells) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: cell,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [[formula]] }
+    });
+  }
+
+  // Paso 3: Formato
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: SPREADSHEET_ID,
     requestBody: {
       requests: [
-        // Título merge + bold
         { mergeCells: { range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 2 }, mergeType: 'MERGE_ALL' } },
         { repeatCell: { range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 14 }, horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)' } },
-        // Labels bold (Placa, Fecha, Cliente)
         { repeatCell: { range: { sheetId, startRowIndex: 1, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } },
-        // Borde verde B2:B4
         { updateBorders: { range: { sheetId, startRowIndex: 1, endRowIndex: 4, startColumnIndex: 1, endColumnIndex: 2 }, top: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, bottom: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, left: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, right: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } } } },
-        // REPUESTOS header bold
         { repeatCell: { range: { sheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } },
-        // Wrap repuestos
         { repeatCell: { range: { sheetId, startRowIndex: 5, endRowIndex: 6, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { wrapStrategy: 'WRAP', verticalAlignment: 'TOP' } }, fields: 'userEnteredFormat(wrapStrategy,verticalAlignment)' } },
-        // SERVICIO header bold
         { repeatCell: { range: { sheetId, startRowIndex: 6, endRowIndex: 7, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } },
-        // Wrap servicios
         { repeatCell: { range: { sheetId, startRowIndex: 7, endRowIndex: 8, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { wrapStrategy: 'WRAP', verticalAlignment: 'TOP' } }, fields: 'userEnteredFormat(wrapStrategy,verticalAlignment)' } },
-        // TOTAL bold + borde verde
         { repeatCell: { range: { sheetId, startRowIndex: 9, endRowIndex: 10, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } },
         { updateBorders: { range: { sheetId, startRowIndex: 9, endRowIndex: 10, startColumnIndex: 0, endColumnIndex: 2 }, top: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, bottom: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, left: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, right: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } } } },
-        // Borra CUALQUIER alto de fila heredado de versiones anteriores y lo recalcula
-        // según el contenido real de cada fila (arregla huecos de impresión)
-        { updateDimensionProperties: { range: { sheetId, dimension: 'ROWS', startIndex: 0, endIndex: 10 }, properties: { pixelSize: 21 }, fields: 'pixelSize' } },
-        { autoResizeDimensions: { dimensions: { sheetId, dimension: 'ROWS', startIndex: 0, endIndex: 10 } } },
-        // Columnas compactas para imprimir
         { updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: 1 }, properties: { pixelSize: 180 }, fields: 'pixelSize' } },
         { updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: 1, endIndex: 2 }, properties: { pixelSize: 150 }, fields: 'pixelSize' } }
       ]
     }
   });
 
-  console.log('✅ GENERAR FACTURA - compacto, sin espacio muerto');
+  console.log('✅ GENERAR FACTURA');
 }
 
 restoreDesign().catch(e => console.error('Error:', e.message));

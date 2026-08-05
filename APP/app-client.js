@@ -924,10 +924,8 @@ function limpiarFormulario() {
 function verificarPermisoCierre() {
   try {
     const u = JSON.parse(localStorage.getItem('user') || '{}');
-    const email = u.email || '';
-    return email === 'repuestoshannasmotos@gmail.com' || 
-           email === 'motoversotaller@gmail.com' ||
-           email === 'alexandermedi53h@gmail.com';
+    // Usar campo del JWT en lugar de emails hardcodeados
+    return u.puede_cerrar_caja === true || u.puede_cerrar_caja === 1;
   } catch(e) {
     return false;
   }
@@ -1051,11 +1049,24 @@ Si hay órdenes abiertas que ya fueron entregadas, <b>cierrelas primero en el si
   const ok = await mostrarConfirmModal("Cierre Diario", confirmMsg);
   if (!ok) return;
 
-  // Paso 2: PIN de seguridad profesional
+  // Paso 2: PIN de seguridad profesional — validado en backend (NUNCA hardcodeado en frontend)
   const pin = await mostrarPinModal("🔒 Verificación de seguridad", `Ingrese el PIN de 4 dígitos para autorizar el cierre de <b>${tecnico}</b>.`);
   if (pin === null) return; // Cancelado
-  if (pin !== '7319') {
-    mostrarModal("Acceso Denegado", "PIN incorrecto. Operación cancelada.");
+  
+  // Validar PIN contra backend (no hardcodeado)
+  try {
+    const pinRes = await fetch(`${API_BASE}/api/cierres/verificar-pin`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ pin })
+    });
+    const pinData = await pinRes.json();
+    if (!pinRes.ok || !pinData.ok) {
+      mostrarModal("Acceso Denegado", pinData.error || "PIN incorrecto. Operación cancelada.");
+      return;
+    }
+  } catch (err) {
+    mostrarModal("Error", "No se pudo verificar el PIN. Intenta de nuevo.");
     return;
   }
   

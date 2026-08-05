@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
+const rateLimit = require('express-rate-limit');
 const pool = require('./db');
 const { requestLogger, errorHandler, crearTablaLogs, logError } = require('./utils/logger');
 
@@ -31,6 +32,25 @@ const io = new Server(server, { cors: corsOptions });
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(requestLogger);
+
+// ── Rate Limiting ──────────────────────────────────────────
+// Login: máximo 10 intentos por minuto por IP
+const loginLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: 10,
+  message: { error: 'Demasiados intentos de inicio de sesión. Intenta de nuevo en 1 minuto.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Change password: máximo 5 intentos por minuto por IP
+const passwordLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: 5,
+  message: { error: 'Demasiados intentos de cambio de contraseña. Intenta de nuevo en 1 minuto.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 // ── Socket.io ────────────────────────────────────────────────
 io.on('connection', (socket) => {
@@ -129,6 +149,11 @@ app.use('/api/cierres', require('./routes/cierres'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/mecanicos', require('./routes/mecanicos'));
 
+// Aplicar rate limiting a login y change-password (después de montar rutas)
+// NOTA: Se aplica por ruta específica para no afectar otros endpoints de auth
+app.use('/api/login', loginLimiter);
+app.use('/api/change-password', passwordLimiter);
+
 // ── .well-known para Chrome Password Manager ────────────────
 app.get('/.well-known/change-password', (req, res) => {
   res.redirect('/index.html');
@@ -169,5 +194,52 @@ crearTablaLogs().then(() => {
 }).catch((err) => {
   console.error('❌ Error al iniciar servidor:', err.message);
   process.exit(1);
+});
+
+// ── Graceful Shutdown ────────────────────────────────────────
+// Manejar SIGTERM (Seenode/Vercel) y SIGINT (Ctrl+C)
+async function gracefulShutdown(signal) {
+  console.log(`\n🛑 ${signal} recibido. Cerrando servidor gracefulmente...`);
+  
+  // 1. Detener nuevas conexiones HTTP
+  server.close(() => {
+    console.log('✅ Servidor HTTP cerrado');
+  });
+
+  // 2. Desconectar todos los clientes Socket.io
+  io.emit('server-shutting-down', { message: 'Servicio en mantenimiento' });
+  io.close(() => {
+    console.log('✅ Socket.io cerrado');
+  });
+
+  // 3. Cerrar pool de MySQL
+  try {
+    await pool.end();
+    console.log('✅ Pool de MySQL cerrado');
+  } catch (err) {
+    console.error('❌ Error cerrando MySQL:', err.message);
+  }
+
+  console.log('✅ Graceful shutdown completado');
+  process.exit(0);
+}
+
+// Dar tiempo a las conexiones existentes (máx 10 segundos)
+const SHUTDOWN_TIMEOUT = 10000;
+
+process.on('SIGTERM', () => {
+  setTimeout(() => gracefulShutdown('SIGTERM'), 1000);
+});
+
+process.on('SIGINT', () => {
+  setTimeout(() => gracefulShutdown('SIGINT'), 1000);
+});
+
+// Timeout de seguridad: forzar salida si graceful shutdown tarda demasiado
+process.on('SIGTERM', () => {
+  setTimeout(() => {
+    console.error('⚠️ Forzando salida después de timeout');
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT);
 });
 

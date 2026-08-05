@@ -5,6 +5,26 @@ const auth = require('../middleware/auth');
 const syncSheets = require('../utils/sync-sheets');
 const { encolarSync } = require('../utils/sheets-queue');
 
+// POST /api/cierres/verificar-pin — validar PIN de cierre (NUNCA exponer PIN en frontend)
+router.post('/verificar-pin', auth, async (req, res) => {
+  try {
+    const { pin } = req.body;
+    if (!pin) {
+      return res.status(400).json({ error: 'PIN requerido' });
+    }
+
+    const pinCorrecto = process.env.CIERRE_PIN || '7319';
+    if (pin !== pinCorrecto) {
+      return res.status(401).json({ ok: false, error: 'PIN incorrecto' });
+    }
+
+    res.json({ ok: true, mensaje: 'PIN verificado correctamente' });
+  } catch (e) {
+    console.error('POST /cierres/verificar-pin error:', e.message);
+    res.status(500).json({ error: 'Error al verificar PIN' });
+  }
+});
+
 // POST /api/cierres/generar
 router.post('/generar', auth, async (req, res) => {
   try {
