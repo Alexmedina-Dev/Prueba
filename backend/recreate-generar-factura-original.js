@@ -26,14 +26,18 @@ async function restoreDesign() {
     sheetId = addRes.data.replies[0].addSheet.properties.sheetId;
   }
 
-  // Helper: si hay datos muestra el contenido, si no devuelve vacío
+  // Helper: fórmulas que buscan por placa (B2) — funcionan con Abierto O Cerrado
   const f = {
+    // Fecha: primer intento con "Abierto", fallback al más reciente sin filtro de estado
     fecha: '=IFERROR(LEFT(INDEX(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto"),1),FIND(",",INDEX(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto"),1))-1),IFERROR(LEFT(INDEX(SORT(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2),1,FALSE),1),FIND(",",INDEX(SORT(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2),1,FALSE),1))-1),""))',
+    // Cliente: lookup Vehículos → Clientes (no depende de estado)
     cliente: '=IFERROR(INDEX(\'Clientes\'!C:C,MATCH(INDEX(\'Vehículos\'!C:C,MATCH(B2,\'Vehículos\'!B:B,0)),\'Clientes\'!B:B,0)),"")',
-    // COUNTIFS directo en Servicios — no necesita FILTER
-    hayRep: '=IF(COUNTIFS(\'Servicios\'!C:C,B2,\'Servicios\'!F:F,"<>",\'Servicios\'!K:K,"Abierto")>0,IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2)),"")),"")',
-    haySrv: '=IF(COUNTIFS(\'Servicios\'!C:C,B2,\'Servicios\'!G:G,"<>",\'Servicios\'!K:K,"Abierto")>0,IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2)),"")),"")',
-    total: '=IF(COUNTIFS(\'Servicios\'!C:C,B2,\'Servicios\'!F:F,"<>",\'Servicios\'!K:K,"Abierto")>0,IFERROR(SUM(FILTER(\'Servicios\'!J:J,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(SUM(FILTER(\'Servicios\'!J:J,\'Servicios\'!C:C=B2)),0)),"")'
+    // Repuestos: busca por placa SIN filtrar por estado (funciona Abierto/Cerrado)
+    hayRep: '=IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2,\'Servicios\'!F:F<>"")),"")',
+    // Servicios: busca por placa SIN filtrar por estado
+    haySrv: '=IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2,\'Servicios\'!G:G<>"")),"")',
+    // Total: suma gran_total por placa SIN filtrar por estado
+    total: '=IFERROR(SUM(FILTER(\'Servicios\'!J:J,\'Servicios\'!C:C=B2,\'Servicios\'!J:J<>0)),0)'
   };
 
   // Compacto: solo filas necesarias, headers condicionales
@@ -79,6 +83,10 @@ async function restoreDesign() {
         // TOTAL bold + borde verde
         { repeatCell: { range: { sheetId, startRowIndex: 9, endRowIndex: 10, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } },
         { updateBorders: { range: { sheetId, startRowIndex: 9, endRowIndex: 10, startColumnIndex: 0, endColumnIndex: 2 }, top: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, bottom: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, left: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, right: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } } } },
+        // Borra CUALQUIER alto de fila heredado de versiones anteriores y lo recalcula
+        // según el contenido real de cada fila (arregla huecos de impresión)
+        { updateDimensionProperties: { range: { sheetId, dimension: 'ROWS', startIndex: 0, endIndex: 10 }, properties: { pixelSize: 21 }, fields: 'pixelSize' } },
+        { autoResizeDimensions: { dimensions: { sheetId, dimension: 'ROWS', startIndex: 0, endIndex: 10 } } },
         // Columnas compactas para imprimir
         { updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: 1 }, properties: { pixelSize: 180 }, fields: 'pixelSize' } },
         { updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: 1, endIndex: 2 }, properties: { pixelSize: 150 }, fields: 'pixelSize' } }

@@ -478,6 +478,12 @@ router.post('/cerrar-rapido', auth, async (req, res) => {
 
     await conn.commit();
 
+    // Obtener detalle_servicios para sync completo (txtRep/txtSrv en Sheets)
+    const [detalleRows] = await pool.execute(
+      'SELECT tipo, codigo, descripcion, cantidad, precio_unitario, subtotal FROM detalle_servicios WHERE idServicio = ?',
+      [idServicio]
+    );
+
     // Sync Google Sheets (fuera de transacción) — con datos completos
     encolarSync(syncSheets, {
       idServicio: srvData.idServicio,
@@ -496,7 +502,8 @@ router.post('/cerrar-rapido', auth, async (req, res) => {
       total_mano_obra: srvData.total_mano_obra || 0,
       gran_total: srvData.gran_total || 0,
       estado: 'Cerrado',
-      fecha_salida: new Date().toISOString()
+      fecha_salida: new Date().toISOString(),
+      detalle: detalleRows
     }, 'Cerrado');
 
     res.json({ ok: true, mensaje: `Servicio ${idServicio} cerrado correctamente.` });

@@ -1,6 +1,11 @@
 const API_BASE = window.location.origin;
 const socket = io(API_BASE);
 
+// ── Guard de sesión: sin token, no se ejecuta nada de la app ──
+if (!localStorage.getItem('token')) {
+  window.location.replace('/index.html?redirect=' + encodeURIComponent(window.location.pathname));
+}
+
 let servicioBloqueado = false;
 let user = getUserName();
 
@@ -61,6 +66,17 @@ function getAuthHeaders(contentType = true) {
   if (token) headers['Authorization'] = 'Bearer ' + token;
   if (contentType) headers['Content-Type'] = 'application/json';
   return headers;
+}
+
+// Helper: manejar respuestas 401 — redirigir al login
+function handleAuthError(res) {
+  if (res.status === 401) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/index.html';
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -345,6 +361,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.onload = function () {
+  if (!localStorage.getItem('token')) return; // ya se está redirigiendo
   cargarAbiertos();
   cargarPendientes();
   cargarMecanicos(); // Cargar mecánicos desde la base de datos
@@ -388,6 +405,7 @@ function parseCurrency(val) {
 async function cargarMecanicos() {
   try {
     const res = await fetch(`${API_BASE}/api/mecanicos`, { headers: getAuthHeaders(false) });
+    if (handleAuthError(res)) return;
     if (!res.ok) throw new Error('Error HTTP ' + res.status);
     const mecanicos = await res.json();
     
@@ -829,7 +847,8 @@ function nuevaOrden() {
       });
     })
     .then(res => {
-      if (!res || !res.ok) throw new Error('Error HTTP ' + res.status);
+      if (res.status === 401) { handleAuthError(res); throw new Error('Sesión expirada'); }
+      if (!res.ok) throw new Error('Error HTTP ' + res.status);
       return res.json();
     })
     .then(res => {

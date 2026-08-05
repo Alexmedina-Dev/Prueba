@@ -15,13 +15,14 @@ router.post('/generar', auth, async (req, res) => {
     }
 
     // Buscar servicios cerrados por fecha_salida y técnico
+    // Fallback: si fecha_salida es NULL, usar fecha (ingreso)
     const [servicios] = await pool.execute(`
-      SELECT idServicio, fecha_salida
+      SELECT idServicio, fecha_salida, fecha
       FROM servicios
       WHERE estado = 'Cerrado'
-        AND DATE(fecha_salida) = ?
         AND tecnico = ?
-    `, [fecha, tecnico]);
+        AND DATE(COALESCE(fecha_salida, fecha)) = ?
+    `, [tecnico, fecha]);
 
     if (servicios.length === 0) {
       return res.status(404).json({ error: 'No hay servicios cerrados para ese técnico y fecha' });
