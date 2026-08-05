@@ -26,47 +26,41 @@ async function restoreDesign() {
     sheetId = addRes.data.replies[0].addSheet.properties.sheetId;
   }
 
-  // Fórmulas
   const f = {
-    fecha: '=IFERROR(TEXT(INDEX(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto"),1),\"DD/MM/YYYY\"),IFERROR(TEXT(INDEX(SORT(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2),1,FALSE),1),\"DD/MM/YYYY\"),\"\"))',
-    cliente: '=IFERROR(INDEX(\'Clientes\'!C:C,MATCH(INDEX(\'Vehículos\'!C:C,MATCH(B2,\'Vehículos\'!B:B,0)),\'Clientes\'!B:B,0)),\"")',
-    repuestos: '=IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2,\'Servicios\'!K:K=\"Abierto\")),IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2)),\"\"))',
-    servicios: '=IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2,\'Servicios\'!K:K=\"Abierto\")),IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2)),\"\"))',
-    total: '=IFERROR(SUM(FILTER(\'Servicios\'!J:J,\'Servicios\'!C:C=B2,\'Servicios\'!K:K=\"Abierto\")),IFERROR(SUM(FILTER(\'Servicios\'!J:J,\'Servicios\'!C:C=B2)),0))'
+    fecha: '=IFERROR(TEXT(INDEX(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto"),1),"DD/MM/YYYY"),IFERROR(TEXT(INDEX(SORT(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2),1,FALSE),1),"DD/MM/YYYY"),""))',
+    cliente: '=IFERROR(INDEX(\'Clientes\'!C:C,MATCH(INDEX(\'Vehículos\'!C:C,MATCH(B2,\'Vehículos\'!B:B,0)),\'Clientes\'!B:B,0)),"")',
+    repuestos: '=IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2)),""))',
+    servicios: '=IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2)),""))',
+    total: '=IFERROR(SUM(FILTER(\'Servicios\'!J:J,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(SUM(FILTER(\'Servicios\'!J:J,\'Servicios\'!C:C=B2)),0))'
   };
 
+  // SIN relleno fijo — SERVICIO va justo después de REPUESTOS
   const template = [
-    ['MOTOVERSO', ''],
-    ['Placa:', 'ABC123'],
-    ['Fecha Salida:', f.fecha],
-    ['Cliente:', f.cliente],
-    ['- - - - - - - - - - - - - - - - - - - - - - - - - - - - -', ''],
-    ['REPUESTOS:', ''],
-    [f.repuestos, ''],
-    ['', ''],
-    ['', ''],
-    ['', ''],
-    ['', ''],
-    ['SERVICIO:', ''],
-    [f.servicios, ''],
-    ['', ''],
-    ['- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -', ''],
-    ['TOTAL A PAGAR:', f.total]
+    ['MOTOVERSO', ''],               // 0 -> fila 1
+    ['Placa:', 'ABC123'],             // 1 -> fila 2
+    ['Fecha Salida:', f.fecha],       // 2 -> fila 3
+    ['Cliente:', f.cliente],          // 3 -> fila 4
+    ['- - - - - - - - - - - - - - - - - - - - - - - - - - - - -', ''], // 4 -> fila 5
+    ['REPUESTOS:', ''],               // 5 -> fila 6
+    [f.repuestos, ''],                // 6 -> fila 7 (auto-alto)
+    ['SERVICIO:', ''],                // 7 -> fila 8 (pegado debajo)
+    [f.servicios, ''],                // 8 -> fila 9 (auto-alto)
+    ['- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -', ''], // 9 -> fila 10
+    ['TOTAL A PAGAR:', f.total]       // 10 -> fila 11
   ];
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
-    range: "'GENERAR FACTURA'!A1:B16",
+    range: "'GENERAR FACTURA'!A1:B11",
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: template }
   });
 
-  // Formato — SIN alturas fijas, solo wrap text
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: SPREADSHEET_ID,
     requestBody: {
       requests: [
-        // Título
+        // Título merge + bold
         { mergeCells: { range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 2 }, mergeType: 'MERGE_ALL' } },
         { repeatCell: { range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 14 }, horizontalAlignment: 'CENTER', verticalAlignment: 'MIDDLE' } }, fields: 'userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)' } },
         // Labels bold
@@ -75,15 +69,15 @@ async function restoreDesign() {
         { updateBorders: { range: { sheetId, startRowIndex: 1, endRowIndex: 4, startColumnIndex: 1, endColumnIndex: 2 }, top: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, bottom: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, left: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, right: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } } } },
         // REPUESTOS header bold
         { repeatCell: { range: { sheetId, startRowIndex: 5, endRowIndex: 6, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } },
-        // Wrap text en repuestos (fila 7)
+        // Wrap repuestos
         { repeatCell: { range: { sheetId, startRowIndex: 6, endRowIndex: 7, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { wrapStrategy: 'WRAP', verticalAlignment: 'TOP' } }, fields: 'userEnteredFormat(wrapStrategy,verticalAlignment)' } },
         // SERVICIO header bold
-        { repeatCell: { range: { sheetId, startRowIndex: 11, endRowIndex: 12, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } },
-        // Wrap text en servicios (fila 13)
-        { repeatCell: { range: { sheetId, startRowIndex: 12, endRowIndex: 13, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { wrapStrategy: 'WRAP', verticalAlignment: 'TOP' } }, fields: 'userEnteredFormat(wrapStrategy,verticalAlignment)' } },
-        // TOTAL A PAGAR bold + borde verde
-        { repeatCell: { range: { sheetId, startRowIndex: 15, endRowIndex: 16, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } },
-        { updateBorders: { range: { sheetId, startRowIndex: 15, endRowIndex: 16, startColumnIndex: 0, endColumnIndex: 2 }, top: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, bottom: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, left: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, right: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } } } },
+        { repeatCell: { range: { sheetId, startRowIndex: 7, endRowIndex: 8, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } },
+        // Wrap servicios
+        { repeatCell: { range: { sheetId, startRowIndex: 8, endRowIndex: 9, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { wrapStrategy: 'WRAP', verticalAlignment: 'TOP' } }, fields: 'userEnteredFormat(wrapStrategy,verticalAlignment)' } },
+        // TOTAL bold + borde verde
+        { repeatCell: { range: { sheetId, startRowIndex: 10, endRowIndex: 11, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: 'userEnteredFormat.textFormat' } },
+        { updateBorders: { range: { sheetId, startRowIndex: 10, endRowIndex: 11, startColumnIndex: 0, endColumnIndex: 2 }, top: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, bottom: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, left: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } }, right: { style: 'SOLID', width: 1, color: { red: 0.3, green: 0.6, blue: 0.3 } } } },
         // Columnas anchas
         { updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: 1 }, properties: { pixelSize: 450 }, fields: 'pixelSize' } },
         { updateDimensionProperties: { range: { sheetId, dimension: 'COLUMNS', startIndex: 1, endIndex: 2 }, properties: { pixelSize: 250 }, fields: 'pixelSize' } }
@@ -91,7 +85,7 @@ async function restoreDesign() {
     }
   });
 
-  console.log('✅ GENERAR FACTURA - wrap text + verticalAlignment TOP');
+  console.log('✅ GENERAR FACTURA - sin relleno fijo, espaciado dinámico');
 }
 
 restoreDesign().catch(e => console.error('Error:', e.message));
