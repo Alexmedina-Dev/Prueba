@@ -108,6 +108,8 @@ async function syncSheets(datos, estado) {
     }
 
     // ── 3. Sincronizar Servicio principal en hoja "Servicios" ──
+    // SKIP si es cierre diario (no tiene idServicio ni placa)
+    if (estado !== 'CierreDiario' && datos.idServicio) {
     // Formato original del app.js:
     // A=id, B=fecha, C=placa, D=marca_modelo, E=tecnico, F=diagnostico, G=txtRep, H=txtSrv, I=totalRep, J=totalMO, K=granTotal, L=estado, M=comentarios, N=fechaSalida
     
@@ -180,6 +182,7 @@ async function syncSheets(datos, estado) {
         requestBody: { values: [servicioData] }
       });
     }
+    } // fin if CierreDiario
 
     // ── 4. Sincronizar Detalle de Servicios en hoja "Detalle_Servicios" ──
     if (datos.detalle && Array.isArray(datos.detalle) && datos.detalle.length > 0) {
