@@ -10,3 +10,6 @@ APP/app.js
 APP/*.xlsx
 .vscode/
 .atl/
+backend/*.json
+!backend/package.json
+!backend/package-lock.json
