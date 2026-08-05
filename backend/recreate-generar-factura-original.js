@@ -30,12 +30,10 @@ async function restoreDesign() {
   const f = {
     fecha: '=IFERROR(LEFT(INDEX(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto"),1),FIND(",",INDEX(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto"),1))-1),IFERROR(LEFT(INDEX(SORT(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2),1,FALSE),1),FIND(",",INDEX(SORT(FILTER(\'Servicios\'!B:B,\'Servicios\'!C:C=B2),1,FALSE),1))-1),""))',
     cliente: '=IFERROR(INDEX(\'Clientes\'!C:C,MATCH(INDEX(\'Vehículos\'!C:C,MATCH(B2,\'Vehículos\'!B:B,0)),\'Clientes\'!B:B,0)),"")',
-    // Headers y contenido condicionales: solo aparecen si hay datos
-    repHeader: '=IF(IFERROR(COUNTA(FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(COUNTA(FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2)),0))>0,"REPUESTOS:","")',
-    repContent: '=IF(IFERROR(COUNTA(FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(COUNTA(FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2)),0))>0,IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2)),"")),"")',
-    srvHeader: '=IF(IFERROR(COUNTA(FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(COUNTA(FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2)),0))>0,"SERVICIO:","")',
-    srvContent: '=IF(IFERROR(COUNTA(FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(COUNTA(FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2)),0))>0,IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2)),"")),"")',
-    total: '=IF(IFERROR(COUNTA(FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(COUNTA(FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2)),0))>0,IFERROR(SUM(FILTER(\'Servicios\'!J:J,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(SUM(FILTER(\'Servicios\'!J:J,\'Servicios\'!C:C=B2)),0)),"")'
+    // COUNTIFS directo en Servicios — no necesita FILTER
+    hayRep: '=IF(COUNTIFS(\'Servicios\'!C:C,B2,\'Servicios\'!F:F,"<>",\'Servicios\'!K:K,"Abierto")>0,IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!F:F,\'Servicios\'!C:C=B2)),"")),"")',
+    haySrv: '=IF(COUNTIFS(\'Servicios\'!C:C,B2,\'Servicios\'!G:G,"<>",\'Servicios\'!K:K,"Abierto")>0,IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(TEXTJOIN(CHAR(10),TRUE,FILTER(\'Servicios\'!G:G,\'Servicios\'!C:C=B2)),"")),"")',
+    total: '=IF(COUNTIFS(\'Servicios\'!C:C,B2,\'Servicios\'!F:F,"<>",\'Servicios\'!K:K,"Abierto")>0,IFERROR(SUM(FILTER(\'Servicios\'!J:J,\'Servicios\'!C:C=B2,\'Servicios\'!K:K="Abierto")),IFERROR(SUM(FILTER(\'Servicios\'!J:J,\'Servicios\'!C:C=B2)),0)),"")'
   };
 
   // Compacto: solo filas necesarias, headers condicionales
@@ -44,11 +42,11 @@ async function restoreDesign() {
     ['Placa:', 'ABC123'],             // 1 -> fila 2
     ['Fecha Salida:', f.fecha],       // 2 -> fila 3
     ['Cliente:', f.cliente],          // 3 -> fila 4
-    [f.repHeader, ''],                // 4 -> fila 5 (vacía si no hay repuestos)
-    [f.repContent, ''],               // 5 -> fila 6 (vacía si no hay repuestos)
-    [f.srvHeader, ''],                // 6 -> fila 7 (vacía si no hay servicios)
-    [f.srvContent, ''],               // 7 -> fila 8 (vacía si no hay servicios)
-    ['', ''],                          // 8 -> fila 9 (respiro mínimo)
+    ['REPUESTOS:', ''],               // 4 -> fila 5 (label siempre visible)
+    [f.hayRep, ''],                   // 5 -> fila 6 (vacía si no hay datos)
+    ['SERVICIO:', ''],                // 6 -> fila 7 (label siempre visible)
+    [f.haySrv, ''],                   // 7 -> fila 8 (vacía si no hay datos)
+    ['', ''],                          // 8 -> fila 9 (respiro)
     ['TOTAL A PAGAR:', f.total]       // 9 -> fila 10
   ];
 
