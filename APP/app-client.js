@@ -365,7 +365,14 @@ window.onload = function () {
   cargarAbiertos();
   cargarPendientes();
   cargarMecanicos(); // Cargar mecánicos desde la base de datos
-  document.getElementById('fechaCierre').valueAsDate = new Date();
+  // Fecha Colombia explícita (evita bug de timezone UTC)
+  const hoyColombia = new Date().toLocaleDateString('es-CO', { 
+    timeZone: 'America/Bogota',
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit' 
+  }).split('/').reverse().join('-');
+  document.getElementById('fechaCierre').value = hoyColombia;
   setInterval(cargarAbiertos, 15000);
   setInterval(cargarPendientes, 30000);
   setupSocketListeners();

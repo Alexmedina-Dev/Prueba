@@ -34,6 +34,18 @@ router.post('/generar', auth, async (req, res) => {
       return res.status(400).json({ error: 'Fecha y técnico requeridos' });
     }
 
+    // Validación: no permitir fechas futuras (Colombia timezone)
+    const hoyColombia = new Date().toLocaleDateString('es-CO', { 
+      timeZone: 'America/Bogota',
+      year: 'numeric', month: '2-digit', day: '2-digit' 
+    }).split('/').reverse().join('-');
+    
+    if (fecha > hoyColombia) {
+      return res.status(400).json({ 
+        error: `No se pueden generar cierres de fechas futuras. Hoy es ${hoyColombia.split('-').reverse().join('/')}` 
+      });
+    }
+
     // Buscar servicios cerrados por fecha_salida y técnico
     // Fallback: si fecha_salida es NULL, usar fecha (ingreso)
     const [servicios] = await pool.execute(`
