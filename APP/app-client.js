@@ -373,6 +373,9 @@ window.onload = function () {
     day: '2-digit' 
   }).split('/').reverse().join('-');
   document.getElementById('fechaCierre').value = hoyColombia;
+  // Bloquear fechas futuras en el selector (robustez tipo Apps Script)
+  const fechaCierreInput = document.getElementById('fechaCierre');
+  fechaCierreInput.max = hoyColombia;
   setInterval(cargarAbiertos, 15000);
   setInterval(cargarPendientes, 30000);
   setupSocketListeners();
